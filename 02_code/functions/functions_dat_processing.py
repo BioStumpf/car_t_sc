@@ -11,9 +11,10 @@ def is_mad_outlier(adata, metric: str, nmads: int):
     )
     return outlier
 
-def is_pctl_outlier(adata, metric: str, pctl_threshhold: float):
+#this function is also to determine outliers, but its related to finding the .xth quantile and filters based on this.
+def is_qntl_outlier(adata, metric: str, qntl_threshhold: float):
     M = adata.obs[metric]
-    lower_lim = np.quantile(M, pctl_threshhold)
-    upper_lim = np.quantile(M, (1 - pctl_threshhold))
+    lower_lim = np.quantile(M, qntl_threshhold)
+    upper_lim = np.quantile(M, (1 - qntl_threshhold))
     outlier = (M < lower_lim) | (M > upper_lim)
     return outlier
