@@ -31,3 +31,10 @@ def hashing_columns(data):
     dat_cpy.obs = dat_cpy.obs.join(htos_df)
     dat_cpy = dat_cpy[:, ~htos].copy()
     return dat_cpy
+
+#function for finding empty droplets in the raw data
+def find_empty_drops(rawdata, range = [0, 100]):
+    cell_sums = np.array(rawdata.X.sum(axis=1)).flatten()
+    condition = (cell_sums > range[0]) & (cell_sums < range[1])
+    empty_drops = rawdata[condition, :].X.T
+    return empty_drops
