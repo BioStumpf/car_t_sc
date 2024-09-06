@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.stats import median_abs_deviation
-from scipy.sparse import csr_matrix, issparse
+from scipy.sparse import issparse
 
 #this function is to determine outliers. It can only be used after using sc.pp.calculate_qc_metrics().
 #it takes a specific qc metric, like total count or total gene count and extracts the column corresponding to this metric form the adata object.
