@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.stats import median_abs_deviation
+from scipy.sparse import csr_matrix, issparse
 
 #this function is to determine outliers. It can only be used after using sc.pp.calculate_qc_metrics().
 #it takes a specific qc metric, like total count or total gene count and extracts the column corresponding to this metric form the adata object.
@@ -49,3 +50,13 @@ def find_empty_drops(rawdata, range = [0, 100]):
     condition = (cell_sums > range[0]) & (cell_sums < range[1])
     empty_drops = rawdata[condition, :].X.T
     return empty_drops
+
+#this function is to convert the andata.X.T sparse matrix into a csc format (if its below 32 bits)
+#this is due to scran deconvolved normalization functions only being able to deal with csc type
+def convert_to_csc(matrix):
+    if issparse(matrix):
+        if matrix.nnz > 2**31 - 1:
+            matrix = matrix.tocoo()
+        else:
+            matrix = matrix.tocsc()
+    return matrix
