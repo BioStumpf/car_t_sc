@@ -47,7 +47,7 @@ def hashing_columns(data, rename_to = None, rm_var_cols=False):
 #function for finding empty droplets in the raw data
 def find_empty_drops(rawdata, range = [0, 100]):
     cell_sums = np.array(rawdata.X.sum(axis=1)).flatten()
-    condition = (cell_sums > range[0]) & (cell_sums < range[1])
+    condition = (cell_sums > range[0]) & (cell_sums < range[1]) #why greater then 0 and not greater or equal? well you are aiming to compute an empty droplet profile, hence only droplets that do contain some genes are relevant
     empty_drops = rawdata[condition, :].X.T
     return empty_drops
 
