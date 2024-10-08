@@ -60,3 +60,22 @@ def convert_to_csc(matrix):
         else:
             matrix = matrix.tocsc()
     return matrix
+
+#######
+# Now to the functions for processing all pools
+#######
+
+# This is to read all Pools within the given folder
+def read_all_pools(path_to_folders: str, path_to_count_matrix_within_folders: str):
+    adatas = []
+    subfolders = sorted(os.listdir(path_to_folders))
+    for folder in subfolders:
+        count_matrix_path = os.path.join(path_to_folders, folder, path_to_count_matrix_within_folders)
+        if os.path.isdir(count_matrix_path):
+            print(f'Reading from: {count_matrix_path}')
+            adata = sc.read_10x_mtx(count_matrix_path, gex_only=False)
+            adatas.append(adata)
+        else:
+            print(f'Could not read {count_matrix_path}')
+    print(f'Read a total of {len(adatas)}')
+    return adatas
