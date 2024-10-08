@@ -1,6 +1,8 @@
 import numpy as np
 from scipy.stats import median_abs_deviation
 from scipy.sparse import issparse
+import os
+import scanpy as sc
 
 #this function is to determine outliers. It can only be used after using sc.pp.calculate_qc_metrics().
 #it takes a specific qc metric, like total count or total gene count and extracts the column corresponding to this metric form the adata object.
@@ -66,16 +68,51 @@ def convert_to_csc(matrix):
 #######
 
 # This is to read all Pools within the given folder
+# takes the path to the folder where all file subfolders are stored + where within these subfolders you can find the actual count matrix as input
 def read_all_pools(path_to_folders: str, path_to_count_matrix_within_folders: str):
+    #initialize a list for all andata objects
     adatas = []
+    #read all folders in the given path
     subfolders = sorted(os.listdir(path_to_folders))
+    #iterate through all subfolder, within each subfolder, go to the folder containing the count matrix
     for folder in subfolders:
         count_matrix_path = os.path.join(path_to_folders, folder, path_to_count_matrix_within_folders)
+        #if the the given path is a directory, import the count matrix using scanpy and append to the list of andata objects
         if os.path.isdir(count_matrix_path):
             print(f'Reading from: {count_matrix_path}')
             adata = sc.read_10x_mtx(count_matrix_path, gex_only=False)
             adatas.append(adata)
+        #if the given path is no directory, inform the user about it
         else:
             print(f'Could not read {count_matrix_path}')
+    #finaly return the lenght of the given elements and the list of andata objects
     print(f'Read a total of {len(adatas)}')
     return adatas
+
+
+def quality_control(adatas: list):
+    #copy adatas list
+    adatas_cp = []
+    #iterate through copy and apply qc
+    for i, adata in enumerate(adatas):
+        print(f'computing qc for adatas[{i}]')
+        #create a colum for mitochondrial genes and include it for qc
+        adata.var['mt'] = adata.var_names.str.startswith('mt-')
+        sc.pp.calculate_qc_metrics(adata, qc_vars=['mt'], inplace=True)
+        #determine mad outliers and filter them out
+        adata.obs["outlier"] = (
+            is_mad_outlier(adata, "log1p_total_counts", 5)
+            |  is_mad_outlier(adata, "log1p_n_genes_by_counts", 5)
+            |  is_mad_outlier(adata, "pct_counts_mt", 20) 
+            |  (adata.obs["pct_counts_mt"] > 20)
+        )
+        adata_subset = adata[(~adata.obs.outlier), :].copy()
+        adatas_cp.append(adata_subset)
+    return adatas_cp
+
+
+#function for plotting the qc metrics
+def plot_qc_metrics(adatas: list, adatas_qc: list):
+    for adata, adata_qc in zip(adatas, adatas_qc):
+        sc.pl.violin(adata, ['n_genes_by_counts', 'total_counts', 'pct_counts_mt'], multi_panel=True)
+        sc.pl.violin(adata_qc, ['n_genes_by_counts', 'total_counts', 'pct_counts_mt'], multi_panel=True)
