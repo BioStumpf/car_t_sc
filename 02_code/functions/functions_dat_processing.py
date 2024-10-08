@@ -3,6 +3,7 @@ from scipy.stats import median_abs_deviation
 from scipy.sparse import issparse
 import os
 import scanpy as sc
+import matplotlib.pyplot as plt
 
 #this function is to determine outliers. It can only be used after using sc.pp.calculate_qc_metrics().
 #it takes a specific qc metric, like total count or total gene count and extracts the column corresponding to this metric form the adata object.
@@ -113,6 +114,21 @@ def quality_control(adatas: list):
 
 #function for plotting the qc metrics
 def plot_qc_metrics(adatas: list, adatas_qc: list):
-    for adata, adata_qc in zip(adatas, adatas_qc):
-        sc.pl.violin(adata, ['n_genes_by_counts', 'total_counts', 'pct_counts_mt'], multi_panel=True)
-        sc.pl.violin(adata_qc, ['n_genes_by_counts', 'total_counts', 'pct_counts_mt'], multi_panel=True)
+    for i, (adata, adata_qc) in enumerate(zip(adatas, adatas_qc)):
+        fig, axs = plt.subplots(2, 3, figsize=(14, 12))
+        fig.suptitle(f'QC Metrics Before and After for pool: {i+1}')
+
+        categories = ['n_genes_by_counts', 'total_counts', 'pct_counts_mt']
+        for i, category in enumerate(categories):
+            sc.pl.violin(adata, category, ax = axs[0, i], show=False)
+            sc.pl.violin(adata_qc, category, ax = axs[1, i], show=False)
+            axs[0, i].spines['top'].set_visible(False) 
+            axs[1, i].spines['top'].set_visible(False)
+            axs[0, i].spines['right'].set_visible(False) 
+            axs[1, i].spines['right'].set_visible(False)
+        
+        axs[0, 1].set_title('Before QC')
+        axs[1, 1].set_title('After QC')
+
+        # plt.tight_layout(rect=[0, 0, 1, 0.95])  # Adjust layout to fit title
+        plt.show()
