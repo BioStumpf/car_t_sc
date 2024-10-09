@@ -4,6 +4,8 @@ from scipy.sparse import issparse
 import os
 import scanpy as sc
 import matplotlib.pyplot as plt
+import pandas as pd
+import seaborn as sns
 
 #this function is to determine outliers. It can only be used after using sc.pp.calculate_qc_metrics().
 #it takes a specific qc metric, like total count or total gene count and extracts the column corresponding to this metric form the adata object.
@@ -96,14 +98,14 @@ def quality_control(adatas: list):
     adatas_cp = []
     #iterate through copy and apply qc
     for i, adata in enumerate(adatas):
-        print(f'computing qc for adatas[{i}]')
+        print(f'computing qc for Pool {i+1}')
         #create a colum for mitochondrial genes and include it for qc
         adata.var['mt'] = adata.var_names.str.startswith('mt-')
         sc.pp.calculate_qc_metrics(adata, qc_vars=['mt'], inplace=True)
         #determine mad outliers and filter them out
         adata.obs["outlier"] = (
-            is_mad_outlier(adata, "log1p_total_counts", 5)
-            |  is_mad_outlier(adata, "log1p_n_genes_by_counts", 5)
+            is_mad_outlier(adata, "total_counts", 6) #log1p_
+            |  is_mad_outlier(adata, "n_genes_by_counts", 6) #log1p_
             |  is_mad_outlier(adata, "pct_counts_mt", 20) 
             |  (adata.obs["pct_counts_mt"] > 20)
         )
@@ -115,20 +117,25 @@ def quality_control(adatas: list):
 #function for plotting the qc metrics
 def plot_qc_metrics(adatas: list, adatas_qc: list):
     for i, (adata, adata_qc) in enumerate(zip(adatas, adatas_qc)):
-        fig, axs = plt.subplots(2, 3, figsize=(14, 12))
+        fig, axs = plt.subplots(1, 3, figsize=(16, 6))
         fig.suptitle(f'QC Metrics Before and After for pool: {i+1}')
 
-        categories = ['n_genes_by_counts', 'total_counts', 'pct_counts_mt']
-        for i, category in enumerate(categories):
-            sc.pl.violin(adata, category, ax = axs[0, i], show=False)
-            sc.pl.violin(adata_qc, category, ax = axs[1, i], show=False)
-            axs[0, i].spines['top'].set_visible(False) 
-            axs[1, i].spines['top'].set_visible(False)
-            axs[0, i].spines['right'].set_visible(False) 
-            axs[1, i].spines['right'].set_visible(False)
-        
-        axs[0, 1].set_title('Before QC')
-        axs[1, 1].set_title('After QC')
+        metrics = ['n_genes_by_counts', 'total_counts', 'pct_counts_mt']
+        before_qc = adata.obs[metrics].copy()
+        after_qc = adata_qc.obs[metrics].copy()
+        before_qc['Condition'] = 'Before QC'
+        after_qc['Condition'] = 'After QC'
+        combined_df = pd.concat([before_qc, after_qc])
 
-        # plt.tight_layout(rect=[0, 0, 1, 0.95])  # Adjust layout to fit title
+        for j, metric in enumerate(metrics):
+            # Melt the DataFrame to use seaborn's factor plot style
+            melted_df = pd.melt(combined_df, id_vars='Condition', value_vars= metric, var_name='Metric')
+            sns.violinplot(x='Metric', y='value', hue='Condition', data=melted_df, dodge=True, split=False, ax = axs[j], cut=0)
+            axs[j].set_xlabel('')
+            axs[j].set_ylabel('')
+        axs[0].set_ylabel('Value')
+        handles, labels = axs[0].get_legend_handles_labels()
+        fig.legend(handles, labels, loc='upper right', bbox_to_anchor=(0.9, 1))
+        for ax in axs:
+            ax.legend_.remove()
         plt.show()
