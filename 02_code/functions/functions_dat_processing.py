@@ -160,3 +160,15 @@ def plot_qc_metrics(adatas: list, adatas_qc: list):
         for ax in axs:
             ax.legend_.remove()
         plt.show()
+
+#transfer HTOs from actual matrix to adata.obs (to use hashsolo later on in the workflow and not falsify quality control metrics)
+def transfer_htos(adatas: list, adatas_raw: list):
+    adatas_new = []
+    adatas_raw_new = []
+    for (adata, adata_raw) in zip(adatas, adatas_raw):
+        conditions = list(adata.var[adata.var.feature_types == 'Antibody Capture'].gene_ids)
+        adata_new = hashing_columns(adata, rename_to=conditions, rm_var_cols=True) 
+        adata_raw_new = hashing_columns(adata_raw, rm_var_cols=True)
+        adatas_new.append(adata_new)
+        adatas_raw_new.append(adata_raw_new)
+    return adatas_new, adatas_raw_new
