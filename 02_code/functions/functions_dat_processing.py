@@ -93,7 +93,7 @@ def read_all_pools(path_to_folders: str, path_to_count_matrix_within_folders: st
     return adatas
 
 
-def quality_control(adatas: list):
+def quality_control(adatas: list, method = 'mad'):
     #copy adatas list
     adatas_cp = []
     #iterate through copy and apply qc
@@ -102,13 +102,32 @@ def quality_control(adatas: list):
         #create a colum for mitochondrial genes and include it for qc
         adata.var['mt'] = adata.var_names.str.startswith('mt-')
         sc.pp.calculate_qc_metrics(adata, qc_vars=['mt'], inplace=True)
-        #determine mad outliers and filter them out
-        adata.obs["outlier"] = (
-            is_mad_outlier(adata, "total_counts", 6) #log1p_
-            |  is_mad_outlier(adata, "n_genes_by_counts", 6) #log1p_
-            |  is_mad_outlier(adata, "pct_counts_mt", 20) 
-            |  (adata.obs["pct_counts_mt"] > 20)
-        )
+        #determine mad, quantile or absolute outliers and filter them out
+        if method.lower() == 'mad':
+            adata.obs["outlier"] = (
+                is_mad_outlier(adata, "total_counts", 5) #log1p_
+                |  is_mad_outlier(adata, "n_genes_by_counts", 5) #log1p_
+                |  is_mad_outlier(adata, "pct_counts_mt", 20) 
+                # |  is_mad_outlier(adata, "pct_counts_in_top_20_genes", 5)
+                |  (adata.obs["pct_counts_mt"] > 20)
+            )
+        elif method.lower() == 'qntl':
+            adata.obs["outlier"] = (
+                is_qntl_outlier(adata, "total_counts", .01)
+                |  is_qntl_outlier(adata, "n_genes_by_counts", .01)
+                |  is_qntl_outlier(adata, "pct_counts_mt", .01)
+                |  (adata.obs["pct_counts_mt"] > 20)
+                )
+        elif method.lower() == 'abs':
+            adata.obs['outlier'] = (
+                (adata.obs['n_genes_by_counts'] > 6000)
+                | (adata.obs['n_genes_by_counts'] < 200)
+                | (adata.obs['pct_counts_mt'] > 20)
+            )
+        else:
+            print('Filtering must be either mad, qntl or abs')
+            return 0
+        #finally subset according to previous filtering
         adata_subset = adata[(~adata.obs.outlier), :].copy()
         adatas_cp.append(adata_subset)
     return adatas_cp
@@ -118,7 +137,9 @@ def quality_control(adatas: list):
 def plot_qc_metrics(adatas: list, adatas_qc: list):
     for i, (adata, adata_qc) in enumerate(zip(adatas, adatas_qc)):
         fig, axs = plt.subplots(1, 3, figsize=(16, 6))
-        fig.suptitle(f'QC Metrics Before and After for pool: {i+1}')
+        cells_before = adata.obs.shape[0]
+        cells_after = adata_qc.obs.shape[0]
+        fig.suptitle(f'QC Metrics Before (Cells: {cells_before}) and After (Cells: {cells_after}) for pool: {i+1}')
 
         metrics = ['n_genes_by_counts', 'total_counts', 'pct_counts_mt']
         before_qc = adata.obs[metrics].copy()
