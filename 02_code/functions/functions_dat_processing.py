@@ -7,6 +7,18 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 
+import anndata2ri
+from rpy2.robjects import pandas2ri
+from rpy2.robjects.conversion import localconverter
+import logging
+import rpy2.rinterface_lib.callbacks as rcb
+import rpy2.robjects as ro
+rcb.logger.setLevel(logging.ERROR)
+ro.pandas2ri.activate()
+ro.numpy2ri.activate()
+anndata2ri.activate()
+
+
 #this function is to determine outliers. It can only be used after using sc.pp.calculate_qc_metrics().
 #it takes a specific qc metric, like total count or total gene count and extracts the column corresponding to this metric form the adata object.
 #then it computes wether the MAD (median absolute deviation) deviates nmads (e.g. 5) from the median. The output is an array of F/T.
@@ -172,3 +184,138 @@ def transfer_htos(adatas: list, adatas_raw: list):
         adatas_new.append(adata_new)
         adatas_raw_new.append(adata_raw_new)
     return adatas_new, adatas_raw_new
+
+#write demultiplexing function
+
+
+#do the preclustering on each adata object, which is necessary for e.g. SoupX and scran normalization
+def pregroup(adatas: list, resolution = None):
+    for adata in adatas:
+        scales_counts = sc.pp.normalize_total(adata, target_sum=None, inplace=False)
+        adata.layers['log1p'] = sc.pp.log1p(scales_counts["X"], copy=True)
+        sc.pp.pca(adata, layer='log1p', n_comps=resolution)
+        sc.pp.neighbors(adata)
+        sc.tl.leiden(adata, key_added="groups", flavor="igraph", n_iterations=2)
+
+# def pregroup(adatas: list, resolution = None):
+#     adatas_pp = []
+#     for adata in adatas:
+#         adata_pp = adata.copy()
+#         sc.pp.normalize_total(adata_pp)
+#         sc.pp.log1p(adata_pp)
+#         sc.pp.pca(adata_pp, n_comps=resolution)
+#         sc.pp.neighbors(adata_pp)
+#         sc.tl.leiden(adata_pp, key_added="groups", flavor="igraph", n_iterations=2)
+#         adatas_pp.append(adata_pp)
+#     return adatas_pp
+
+#define soupX function to apply soupX to all the pools
+# def cook_soup(adata, adata_raw):
+#     r_code = """
+#     make_soup <- function(data, data_raw, genes, cells, soupx_groups, empty_drops)
+#     {
+#         rownames(data) = genes
+#         colnames(data) = cells
+
+#         data <- as(data, "sparseMatrix")
+#         data_raw <- as(data_raw, "sparseMatrix")
+
+#         sc = SoupChannel(data_raw, data, calcSoupProfile = FALSE) #technically you do not even need the raw data since the empty droplets were computed manually, you may also use 2x data
+#         soupProf = data.frame(row.names = genes, est = rowSums(empty_drops)/sum(empty_drops), counts = rowSums(empty_drops))
+#         sc = setSoupProfile(sc, soupProf)
+#         print("Soup profile set")
+#         sc = setClusters(sc, soupx_groups)
+#         print("Clusters set")
+#         sc  = autoEstCont(sc, doPlot=FALSE)
+#         if (is.null(sc$metaData$rho)) {
+#             stop("Contamination fractions were not calculated")
+#         }
+#         out = adjustCounts(sc, roundToInt = TRUE)
+#         return(out)
+#     }
+#     """
+
+#     groups = adata.obs['groups']
+#     empty_drops = dp.find_empty_drops(adata_raw)
+#     cells = adata.obs_names
+#     genes = adata.var_names
+#     data = adata.X.T
+#     data_raw = adata_raw.X.T
+
+#     ro.r(r_code) #run the code above in the rpy2 environment to define the function in R.
+#     r_cook_soup = ro.globalenv['make_soup'] #take the function from the rpy2 so the R environment and make it globally available
+#     res = r_cook_soup(data, data_raw, genes, cells, soupx_groups, empty_drops) #apply the function
+#     return res #for some reason R returns arrays as functions results
+
+def cook_soup(data, raw, genes, cells, soupx_groups, empty_drops):
+
+    r_code = """
+    library(SoupX)
+    library(Matrix)
+
+    make_soup <- function(data, raw, genes, cells, soupx_groups, empty_drops)
+    {
+        rownames(data) = genes
+        colnames(data) = cells
+        data <- as(Matrix(data), "sparseMatrix")
+        raw <- as(Matrix(raw), "sparseMatrix")
+        
+        print("Data dimensions:")
+        print(dim(data))
+        print("Raw data dimensions:")
+        print(dim(raw))
+
+        sc = SoupChannel(raw, data, calcSoupProfile = FALSE)
+        
+        print("SoupChannel object created")
+
+        soupProf = data.frame(row.names = genes, est = rowSums(empty_drops)/sum(empty_drops), counts = rowSums(empty_drops))
+        sc = setSoupProfile(sc, soupProf)
+        
+        print("Soup profile set")
+
+        print("Cluster assignments:")
+        print(table(soupx_groups))
+        sc = setClusters(sc, soupx_groups)
+        
+        print("Clusters set")
+
+        tryCatch({
+            sc = autoEstCont(sc, doPlot=FALSE)
+            print("Contamination fractions estimated:")
+            print(head(sc$metaData$rho))
+        }, error = function(e) {
+            print("Error in autoEstCont:")
+            print(e)
+        })
+
+        if (is.null(sc$metaData$rho)) {
+            stop("Contamination fractions were not calculated")
+        }
+
+        out = adjustCounts(sc, roundToInt = TRUE)
+        return(out)
+    }
+    """
+    ro.r(r_code)
+    r_cook_soup = ro.globalenv['make_soup']
+    
+    # r_data = ro.r.matrix(ro.FloatVector(data.flatten()), nrow=data.shape[0], ncol=data.shape[1])
+    # r_raw = ro.r.matrix(ro.FloatVector(raw.flatten()), nrow=raw.shape[0], ncol=raw.shape[1])
+    # r_genes = ro.StrVector(genes)
+    # r_cells = ro.StrVector(cells)
+    # r_soupx_groups = ro.StrVector(soupx_groups)
+    # r_empty_drops = ro.r.matrix(ro.FloatVector(empty_drops.flatten()), nrow=empty_drops.shape[0], ncol=empty_drops.shape[1])
+
+    res = r_cook_soup(data, raw, genes, cells, soupx_groups, empty_drops)
+    return res
+
+#do the log1p/shifted log normalization
+def log1p_norm(adatas: list):
+    for adata in adatas:
+        scales_counts = sc.pp.normalize_total(adata, target_sum=None, inplace=False)
+        adata.layers['log1p'] = sc.pp.log1p(scales_counts["X"], copy=True)
+
+#write function for scran normalization (optional)
+
+#write function for deviance feature selection
