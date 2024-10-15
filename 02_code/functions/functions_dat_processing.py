@@ -3,6 +3,7 @@ from scipy.stats import median_abs_deviation
 from scipy.sparse import issparse
 import os
 import scanpy as sc
+import scanpy.external as sce
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
@@ -178,16 +179,21 @@ def plot_qc_metrics(adatas: list, adatas_qc: list):
 def transfer_htos(adatas: list, adatas_raw: list):
     adatas_new = []
     adatas_raw_new = []
+    conditions = []
     for (adata, adata_raw) in zip(adatas, adatas_raw):
-        conditions = list(adata.var[adata.var.feature_types == 'Antibody Capture'].gene_ids)
-        adata_new = hashing_columns(adata, rename_to=conditions, rm_var_cols=True) 
+        condition = list(adata.var[adata.var.feature_types == 'Antibody Capture'].gene_ids)
+        #move HTO columns from variables to observables and demultiplex using hashsolo
+        adata_new = hashing_columns(adata, rename_to=condition, rm_var_cols=True) 
         adata_raw_new = hashing_columns(adata_raw, rm_var_cols=True)
+        #append to list of andata objects
         adatas_new.append(adata_new)
         adatas_raw_new.append(adata_raw_new)
-    return adatas_new, adatas_raw_new
+        conditions.append(condition)
+    return adatas_new, adatas_raw_new, conditions
 
-#write demultiplexing function
-
+def demultiplex(adatas, conditions):
+    for (adata, condition) in zip(adatas, conditions):
+        sce.pp.hashsolo(adata, condition)
 
 #do the preclustering on each adata object, which is necessary for e.g. SoupX and scran normalization
 # def pregroup(adatas: list, resolution = None):
@@ -277,5 +283,36 @@ def scran_norm(adata):
     return adata
 
 
+#write function to plot the normalization
+def plot_normalization(adatas, norm_layer, title):
+    for adata in adatas:
+        fig, axes = plt.subplots(1, 2, figsize=(10, 5))
+        sns.histplot(adata.obs["total_counts"], bins=100, kde=False, ax=axes[0])
+        axes[0].set_title("Total counts")
+        sns.histplot(
+            adata.layers[norm_layer].sum(1), bins=100, kde=False, ax=axes[1]
+        )
+        axes[1].set_title(f"log1p with {title} estimated size factors")
+        plt.show()
+
+
 
 #write function for deviance feature selection
+# def deviance_feature_selection(adata, n_top_genes):
+#     r_code = """
+#     get_deviance <- function(adata)
+#     {
+#         sce <- devianceFeatureSelection(adata, assay = "X")
+#         return rowData(sce)$binomial_deviance
+#     }
+#     """
+#     ro.r(r_code)
+#     r_get_deviance = ro.globalenv['get_deviance']
+#     binomial_deviance = r_get_deviance(adata)
+
+#     idx = binomial_deviance.argsort()[-n_top_genes:]
+#     mask = np.zeros(adata.var_names.shape, dtype=bool)
+#     mask[idx] = True
+
+
+#write function to plot deviance feature selection
