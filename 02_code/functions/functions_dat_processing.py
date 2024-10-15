@@ -211,7 +211,7 @@ def pregroup(adata, resolution = None):
     return adata_pp.obs['groups']
 
 #define soupX function to apply soupX to all the pools
-def cook_soup(adata, adata_raw):
+def cook_soup(adata, adata_raw, groups):
     r_code = """
     make_soup <- function(data, data_raw, genes, cells, soupx_groups, empty_drops)
     {
@@ -232,7 +232,6 @@ def cook_soup(adata, adata_raw):
         return(out)
     }
     """
-    groups = adata.obs['groups']
     empty_drops = find_empty_drops(adata_raw)
     cells = adata.obs_names
     genes = adata.var_names
