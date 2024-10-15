@@ -115,7 +115,7 @@ def quality_control(adatas: list, method = 'mad'):
         print(f'computing qc for Pool {i+1}')
         #create a colum for mitochondrial genes and include it for qc
         adata.var['mt'] = adata.var_names.str.startswith('mt-')
-        sc.pp.calculate_qc_metrics(adata, qc_vars=['mt'], inplace=True)
+        sc.pp.calculate_qc_metrics(adata, qc_vars=['mt'], inplace=True, percent_top=None)
         #determine mad, quantile or absolute outliers and filter them out
         if method.lower() == 'mad':
             adata.obs["outlier"] = (
@@ -194,6 +194,11 @@ def transfer_htos(adatas: list, adatas_raw: list):
 def demultiplex(adatas, conditions):
     for (adata, condition) in zip(adatas, conditions):
         sce.pp.hashsolo(adata, condition)
+
+def filter_for_singlets(adata):
+    is_singlet = (adata.obs.Classification != 'Doublet') & (adata.obs.Classification != 'Negative')
+    adata_new = adata[is_singlet,:].copy()
+    return adata_new
 
 #do the preclustering on each adata object, which is necessary for e.g. SoupX and scran normalization
 # def pregroup(adatas: list, resolution = None):
