@@ -201,21 +201,14 @@ def filter_for_singlets(adata):
     return adata_new
 
 #do the preclustering on each adata object, which is necessary for e.g. SoupX and scran normalization
-# def pregroup(adatas: list, resolution = None):
-#     for adata in adatas:
-#         scales_counts = sc.pp.normalize_total(adata, target_sum=None, inplace=False)
-#         adata.layers['log1p'] = sc.pp.log1p(scales_counts["X"], copy=True)
-#         sc.pp.pca(adata, layer='log1p', n_comps=resolution)
-#         sc.pp.neighbors(adata)
-#         sc.tl.leiden(adata, key_added="groups", flavor="igraph", n_iterations=2)
-
 def pregroup(adata, resolution = None):
-    scales_counts = sc.pp.normalize_total(adata, target_sum=None, inplace=False)
-    adata.layers['log1p'] = sc.pp.log1p(scales_counts["X"], copy=True)
-    sc.pp.pca(adata, layer='log1p', n_comps=resolution)
-    sc.pp.neighbors(adata)
-    sc.tl.leiden(adata, key_added="groups", flavor="igraph", n_iterations=2)
-    return adata
+    adata_pp = adata.copy()
+    sc.pp.normalize_total(adata_pp) #normalize with respect to total counts. Each cell will have in the end the same total count in the end.
+    sc.pp.log1p(adata_pp) #converts the counts into log1p(counts), meaning it computes ln(1 + count)
+    sc.pp.pca(adata_pp, n_comps=resolution)
+    sc.pp.neighbors(adata_pp)
+    sc.tl.leiden(adata_pp, key_added="groups", flavor="igraph", n_iterations=2)
+    return adata_pp.obs['groups']
 
 #define soupX function to apply soupX to all the pools
 def cook_soup(adata, adata_raw):
