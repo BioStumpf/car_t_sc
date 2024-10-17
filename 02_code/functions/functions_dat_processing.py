@@ -241,23 +241,20 @@ def cook_soup(adata, adata_raw, groups):
     ro.r(r_code) #run the code above in the rpy2 environment to define the function in R.
     r_cook_soup = ro.globalenv['make_soup'] #take the function from the rpy2 so the R environment and make it globally available
     res = r_cook_soup(data, data_raw, genes, cells, groups, empty_drops) #apply the function
-    adata.layers["counts"] = adata.X
-    adata.layers["soupX_counts"] = res.T
-    adata.X = adata.layers["soupX_counts"]
-    return adata
+    adata_new = adata.copy()
+    adata_new.layers["counts"] = adata_new.X
+    adata_new.layers["soupX_counts"] = res.T
+    adata_new.X = adata_new.layers["soupX_counts"]
+    return adata_new
 
 #do the log1p/shifted log normalization
-# def log1p_norm(adatas: list):
-#     for adata in adatas:
-#         scales_counts = sc.pp.normalize_total(adata, target_sum=None, inplace=False)
-#         adata.layers['log1p'] = sc.pp.log1p(scales_counts["X"], copy=True)
-def log1p_norm(adata):
-    scales_counts = sc.pp.normalize_total(adata, target_sum=None, inplace=False)
-    adata.layers['log1p'] = sc.pp.log1p(scales_counts["X"], copy=True)
-    return adata
+def log1p_norm(adatas: list):
+    for adata in adatas:
+        scales_counts = sc.pp.normalize_total(adata, target_sum=None, inplace=False)
+        adata.layers['log1p'] = sc.pp.log1p(scales_counts["X"], copy=True)
 
 #write function for scran normalization (optional)
-def scran_norm(adata):
+def scran_norm(adata, input_groups):
     r_code = """
     scran <- function(dat_mat, input_groups)
     {
@@ -268,16 +265,16 @@ def scran_norm(adata):
     }
     """
     dat_mat = convert_to_csc(adata.layers['log1p'].T)
-    input_groups = adata.obs['groups']
 
     ro.r(r_code)
     r_scran = ro.globalenv['scran']
     sf = r_scran(dat_mat, input_groups)
-
-    adata.obs['size_factors'] = sf
-    scran_norm = adata.X /adata.obs["size_factors"].values[:, None]
-    adata.layers["scran_normalization"] = csr_matrix(sc.pp.log1p(scran_norm))
-    return adata
+    
+    adata_new = adata.copy()
+    adata_new.obs['size_factors'] = sf
+    scran_norm = adata_new.X /adata_new.obs["size_factors"].values[:, None]
+    adata_new.layers["scran_normalization"] = csr_matrix(sc.pp.log1p(scran_norm))
+    return adata_new
 
 
 #write function to plot the normalization
@@ -291,8 +288,6 @@ def plot_normalization(adatas, norm_layer, title):
         )
         axes[1].set_title(f"log1p with {title} estimated size factors")
         plt.show()
-
-
 
 #write function for deviance feature selection
 # def deviance_feature_selection(adata, n_top_genes):
