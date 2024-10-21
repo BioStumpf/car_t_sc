@@ -289,6 +289,34 @@ def plot_normalization(adatas, norm_layer, title):
         axes[1].set_title(f"log1p with {title} estimated size factors")
         plt.show()
 
+#function for STACAS integration
+
+def STACAS_integration(adata_merged, ndim: int):
+    r_code = """
+    STACAS_int <- function(adata_merged, ndim)
+    {
+        seurat <- as.Seurat(adata_merged, counts = "counts", data = "log1p")
+        batch_list <- SplitObject(seurat, split.by = "dataset")
+        integrated <-  Run.STACAS(batch_list, dims = 1:ndim, anchor.features = rownames(seurat))
+        integrated_expr <- GetAssayData(integrated)
+        integrated_expr <- integrated_expr[rownames(seurat), colnames(seurat)]
+        integrated_expr <- t(integrated_expr)
+        return(integrated_expr)
+    }
+    """
+
+    adata_merged_seurat = adata_merged.copy()
+    adata_merged_seurat.obs['dataset'] = adata_merged_seurat.obs['dataset'].astype(str)
+    del adata_merged_seurat.uns
+
+    ro.r(r_code)
+    r_STACAS = ro.globalenv['STACAS_int']
+    integrated_matrix = r_STACAS(adata_merged_seurat, ndim)
+
+    return integrated_matrix
+
+
+
 #write function for deviance feature selection
 # def deviance_feature_selection(adata, n_top_genes):
 #     r_code = """
