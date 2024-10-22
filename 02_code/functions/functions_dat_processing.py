@@ -315,7 +315,28 @@ def STACAS_integration(adata_merged, ndim: int):
 
     return integrated_matrix
 
+#function for scGate/cell type annotation 
+#for some reason this function does not properly work, its too slow so just go with using it manually on the dataset
+def scGate(adata):
+    r_code = """
+    annotate <- function(adata)
+    {
+    seurat_object <- as.Seurat(adata, counts = "counts", data = "log1p")
+    sc_gating_models <- get_scGateDB()
+    seurat_object <- scGate(seurat_object, model = sc_gating_models$mouse$generic$Tcell)
+    res <- seurat_object@meta.data$is.pure
+    return(res)
+    }
+    """
 
+    seurat = adata.copy()
+    del seurat.uns
+
+    ro.r(r_code)
+    r_sc_gate = ro.globalenv['annotate']
+    annotation_vec = r_sc_gate(seurat)
+
+    return annotation_vec
 
 #write function for deviance feature selection
 # def deviance_feature_selection(adata, n_top_genes):
