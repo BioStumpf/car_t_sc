@@ -290,7 +290,7 @@ def plot_normalization(adatas, norm_layer, title):
         plt.show()
 
 #function for STACAS integration
-
+#takes forever, dont use it do it manually in script
 def STACAS_integration(adata_merged, ndim: int):
     r_code = """
     STACAS_int <- function(adata_merged, ndim)
