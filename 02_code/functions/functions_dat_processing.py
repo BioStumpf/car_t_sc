@@ -273,21 +273,20 @@ def scran_norm(adata, input_groups):
     adata_new = adata.copy()
     adata_new.obs['size_factors'] = sf
     scran_norm = adata_new.X /adata_new.obs["size_factors"].values[:, None]
-    adata_new.layers["scran_normalization"] = csr_matrix(sc.pp.log1p(scran_norm))
+    adata_new.layers["scran_norm"] = csr_matrix(sc.pp.log1p(scran_norm))
     return adata_new
 
 
 #write function to plot the normalization
-def plot_normalization(adatas, norm_layer, title):
-    for adata in adatas:
-        fig, axes = plt.subplots(1, 2, figsize=(10, 5))
-        sns.histplot(adata.obs["total_counts"], bins=100, kde=False, ax=axes[0])
-        axes[0].set_title("Total counts")
-        sns.histplot(
-            adata.layers[norm_layer].sum(1), bins=100, kde=False, ax=axes[1]
-        )
-        axes[1].set_title(f"log1p with {title} estimated size factors")
-        plt.show()
+def plot_normalization(adata, norm_layer, title):
+    fig, axes = plt.subplots(1, 2, figsize=(10, 5))
+    sns.histplot(adata.X.sum(1), bins=100, kde=False, ax=axes[0])
+    axes[0].set_title("Total counts")
+    sns.histplot(
+        adata.layers[norm_layer].sum(1), bins=100, kde=False, ax=axes[1]
+    )
+    axes[1].set_title(f"log1p with {title} estimated size factors")
+    plt.show()
 
 #function for STACAS integration
 #takes forever, dont use it do it manually in script
