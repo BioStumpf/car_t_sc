@@ -270,11 +270,13 @@ def scran_norm(adata, input_groups):
     r_scran = ro.globalenv['scran']
     sf = r_scran(dat_mat, input_groups)
     
-    adata_new = adata.copy()
-    adata_new.obs['size_factors'] = sf
-    scran_norm = adata_new.X /adata_new.obs["size_factors"].values[:, None]
-    adata_new.layers["scran_norm"] = csr_matrix(sc.pp.log1p(scran_norm))
-    return adata_new
+    # adata_new = adata.copy()
+    # adata_new.obs['size_factors'] = sf
+    # scran_norm = adata_new.X /adata_new.obs["size_factors"].values[:, None]
+    scran_norm = adata.X / sf[:, None]
+    scran_norm = csr_matrix(sc.pp.log1p(scran_norm))
+    # adata_new.layers["scran_norm"] = csr_matrix(sc.pp.log1p(scran_norm))
+    return scran_norm
 
 
 #write function to plot the normalization
