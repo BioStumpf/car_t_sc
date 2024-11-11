@@ -39,18 +39,35 @@ def is_qntl_outlier(adata, metric: str, qntl_threshhold: float):
     outlier = (M < lower_lim) | (M > upper_lim)
     return outlier
 
+#this function filters out HTOs from the adata object. It creates a seperate adata object for the HTO counts.
+#additionally it removes Cells whichs HTO count is zero and removes those cells also from the original RNA expression adata object.
+def generate_hto_adata_object(adata, rename = False):
+    #copy Data
+    dat_cpy = adata.copy() 
+    #find those andata.var rows matching antibody capture (which only works if you do not combine HTO with real antibody capture experiments)
+    htos = dat_cpy.var['feature_types']  == 'Antibody Capture'
+    #create an andata object containing the counts for all HTOs
+    htos_adata = dat_cpy[:, htos].copy()
+    #find cells having no hto counts
+    zero_count_cells = htos_adata.X.sum(axis=1) == 0
+    #eliminate 0 count cells from HTO adata and original adata object. Remove HTO features from original adata object.
+    htos_adata = htos_adata[~zero_count_cells,].copy()
+    dat_cpy = dat_cpy[~zero_count_cells, ~htos].copy()
+    #rename the var.names columns of the htos_adata object:
+    if rename:
+        htos_adata.var_names = htos_adata.var.gene_ids.values
+    #return adata object containing htos only and adata object containing no HTOs at all.
+    return htos_adata, dat_cpy
+
 #This function is only to be used when utilising hashtag oligos. It is meant to generate a viable input for the hashsolo demultiplexing function.
 #The output of cellranger contains the HTOs as var_names withing the adata object, however hashsolo expects the counts for HTOs to be in the .obs dtaframe.
 #This function takes the HTO feature types (assigned as Antibody Capture) and subsets the adata object to contain only this specific feature type.
 #This is saved into a pandas dataframe, which can finally be joined with the .obs dataframe.
 #Since no longer needed, the feature type is eliminated from the adtada.X matrix and only remains in the .obs df.
-def hashing_columns(data, rename_to = None, rm_var_cols=False):   
-    #copy the andata object
-    dat_cpy = data.copy() 
-    #find those andata.var rows matching antibody capture (which only works if you do not combine HTO with real antibody capture experiments)
-    htos = dat_cpy.var['feature_types']  == 'Antibody Capture'
-    #create a dataframe containing the counts for all HTOs
-    htos_df = dat_cpy[:, htos].copy().to_df()
+def hashing_columns(data, rename_to = None): #, rm_var_cols=False  
+    htos_adata, dat_cpy = generate_hto_adata_object(data) 
+    #convert the andata ovbject into a dataframe to enable joining with the original .obs dataframe
+    htos_df = htos_adata.to_df()
     #rename the dataframes columnames to whatever you find suitable (if you want to rename)
     if rename_to:
         #check if len of the list of names matches the len of the dataframe colnames
@@ -59,8 +76,6 @@ def hashing_columns(data, rename_to = None, rm_var_cols=False):
             htos_df.columns = rename_to
     #join the obs columns with the HTO columns
     dat_cpy.obs = dat_cpy.obs.join(htos_df)
-    #if wanting to remove the var columns completely, remove them
-    if rm_var_cols: dat_cpy = dat_cpy[:, ~htos].copy()
     return dat_cpy
 
 #function for finding empty droplets in the raw data
@@ -183,8 +198,8 @@ def transfer_htos(adatas: list, adatas_raw: list):
     for (adata, adata_raw) in zip(adatas, adatas_raw):
         condition = list(adata.var[adata.var.feature_types == 'Antibody Capture'].gene_ids)
         #move HTO columns from variables to observables and demultiplex using hashsolo
-        adata_new = hashing_columns(adata, rename_to=condition, rm_var_cols=True) 
-        adata_raw_new = hashing_columns(adata_raw, rm_var_cols=True)
+        adata_new = hashing_columns(adata, rename_to=condition) #, rm_var_cols=True
+        adata_raw_new = hashing_columns(adata_raw)
         #append to list of andata objects
         adatas_new.append(adata_new)
         adatas_raw_new.append(adata_raw_new)
