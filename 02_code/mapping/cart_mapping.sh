@@ -1,13 +1,11 @@
 #!/bin/bash
-#SBATCH --job-name=mapping_pools_to_CART
-#SBATCH --error=err.txt
-#SBATCH --output=output.out
 
 DATA_DIR="$HOME/car_t_sc/01_data"
 INDEX_DIR="$DATA_DIR/processed/mapping_index"
 REFERENCE_DIR="$DATA_DIR/reference_cart"
 FASTQS_DIR="$DATA_DIR/raw/raw/2024-06-17_Maik_Luu_24054SC_raw_FASTQ/FASTQ_by_lib"
 OUTPUT="$DATA_DIR/processed/bowtie2_mapped_carts"
+SLURM_OUTPUTS="$HOME/car_t_sc/02_code/mapping/ouputs_errors"
 
 if ! ls "$INDEX_DIR/CD19_R11"*.bt2 1> /dev/null 2>&1; then
     echo "Index does not exist, creating Index first"
@@ -16,10 +14,19 @@ else
     echo "Index exists"
 fi
 
-for file in "$FASTQS_DIR"/*GEX*R2.fq.gz; do
-    pattern=$(basename "$file" | grep -o P[0-9])
-    output_file="$OUTPUT/${pattern}_GEX.sam"
-    bowtie2 -x "$INDEX_DIR/CD19_R11" -U "$file" -S "$output_file" --no-unal
+for file in "$FASTQS_DIR"/*VDJ*R2.fq.gz; do
+    pattern=$(basename "$file" | grep -o P[1-9])
+    output_file="$OUTPUT/${pattern}_VDJ.sam"
+    jobname="CART_mapping_${pattern}"
+    echo "Submitting ${jobname}"
+    sbatch --job-name="$jobname" \
+           --error="$SLURM_OUTPUTS/${jobname}_err.txt" \
+           --output="$SLURM_OUTPUTS/${jobname}_output.out" \
+           --cpus-per-task=2 \
+            --mem-per-cpu=2G \
+           --wrap="bowtie2 -x "$INDEX_DIR/CD19_R11" -U "$file" -S "$output_file" --no-unal"
+            # cart_mapping_inner_func.sh "$INDEX_DIR/CD19_R11" "$file" "$output_file"
+    echo "Successfully submitted ${jobname}"
 done
 
 
