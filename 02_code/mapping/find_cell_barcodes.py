@@ -3,10 +3,10 @@
 import argparse
 import gzip
 
-class aligned_read_info:
-    def __init__(self, id, motif):
-        self.id = id
-        self.motif = motif
+def run(args):
+    sam_file = open(args.sam)
+    fastq_file = gzip.open(args.fastq, 'rt')
+    fout = open(args.output, "w")
 
     #First we need the IDs from the SAM file, ergo we need to read it and store the IDs in a list
     aligned_ids = []
