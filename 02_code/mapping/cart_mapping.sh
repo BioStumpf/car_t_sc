@@ -14,9 +14,9 @@ else
     echo "Index exists"
 fi
 
-for file in "$FASTQS_DIR"/*VDJ*R2.fq.gz; do
+for file in "$FASTQS_DIR"/*GEX*R2.fq.gz; do #do VDJ or GEX
     pattern=$(basename "$file" | grep -o P[1-9])
-    output_file="$OUTPUT/${pattern}_VDJ.sam"
+    output_file="$OUTPUT/${pattern}GEX_rep.sam" #do VDJ or GEX
     jobname="CART_mapping_${pattern}"
     # echo "$jobname" $pattern $output_file $file
     sbatch --job-name="$jobname" \
