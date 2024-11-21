@@ -17,7 +17,7 @@ def extract_DaysConds(days, conditions, classifications):
     return [extract_DayCond(days, conditions, classification) for classification in classifications]
 #this function extracts all given days and conditions from the classification column and adds them to a distinct .obs column of the adata object
 def add_DaysConds_to_adata(adata, days, conditions):
-    classifications = adata.obs.Classification.values
+    classifications = adata.obs.specific_class.values #specific_class, Classification
     res = extract_DaysConds(days, conditions, classifications)
     cond_days, cond_conds = zip(*res)
     adata.obs['condition'] = cond_conds
@@ -31,7 +31,7 @@ def stacked_barplot(adata, cell_subtype, obs_column):
 
     # Filter for only selected subtype
     subtype_only = list(map(lambda subtype: cell_subtype in subtype, adata.obs[obs_column]))
-    adata = adata[subtype_only, :]
+    adata = adata[subtype_only, :].copy()
     unq_celltypes = np.unique(adata.obs[obs_column])
 
     # Set up subplots for each condition
@@ -54,6 +54,7 @@ def stacked_barplot(adata, cell_subtype, obs_column):
 
         # Normalize cell type counts by day
         norm_factors = [sum(day_counts) for day_counts in zip(*celltype_counts.values())]
+        norm_factors = [nf if nf > 0 else 1 for nf in norm_factors] 
         for key, values in celltype_counts.items():
             celltype_counts[key] = (np.array(values) / norm_factors) * 100
 
