@@ -82,7 +82,7 @@ def run(args):
         subset = list(filter(lambda x: x.cellbarcode == cellbarcode, aligned_reads))
         #get the counts for each motif (whatever was mapped to)
         subset_motifs = pd.Index([read.motif for read in subset])
-        IDs = ' '.join([read.id for read in subset])
+        IDs = '\t'.join([read.id for read in subset])
         fout.write(f',{IDs}')
         motif_count = subset_motifs.value_counts()
         #iterate through each motif once 
