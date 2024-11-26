@@ -49,10 +49,10 @@ def generate_hto_adata_object(adata, rename = False):
     #create an andata object containing the counts for all HTOs
     htos_adata = dat_cpy[:, htos].copy()
     #find cells having no hto counts
-    # zero_count_cells = htos_adata.X.sum(axis=1) == 0
+    zero_count_cells = htos_adata.X.sum(axis=1) == 0
     #eliminate 0 count cells from HTO adata and original adata object. Remove HTO features from original adata object.
-    # htos_adata = htos_adata[~zero_count_cells,].copy()
-    dat_cpy = dat_cpy[:, ~htos].copy()
+    htos_adata = htos_adata[~zero_count_cells,].copy()
+    dat_cpy = dat_cpy[~zero_count_cells, ~htos].copy()
     #rename the var.names columns of the htos_adata object:
     if rename:
         htos_adata.var_names = htos_adata.var.gene_ids.values
@@ -210,8 +210,8 @@ def demultiplex(adatas, conditions):
     for (adata, condition) in zip(adatas, conditions):
         sce.pp.hashsolo(adata, condition)
 
-def filter_for_singlets(adata):
-    is_singlet = (adata.obs.Classification != 'Doublet') & (adata.obs.Classification != 'Negative')
+def filter_for_singlets(adata, column='Classification'):
+    is_singlet = (adata.obs[column] != 'Doublet') & (adata.obs[column] != 'Negative')
     adata_new = adata[is_singlet,:].copy()
     return adata_new
 
