@@ -1,110 +1,166 @@
-###scRNA_Analysis
+
 library('Seurat') #5.1.0
-# library('ProjecTILs') #3.3.1
-# library('scRepertoire') #1.12.0
-# library('STACAS') #2.2.2
-# library('scGate') #1.6.2
-# library('dittoSeq') #1.14.3
-# library('Biostrings') #2.70.3
+library('ProjecTILs') #3.3.1
+library('scRepertoire') #1.12.0
+library('STACAS') #2.2.2
+library('scGate') #1.6.2
+library('dittoSeq') #1.14.3
+library('Biostrings') #2.70.3
+library('gprofiler2')
 set.seed(1234)
 
-###LoadFileFrom10X
-data <- Read10X("~/car_t_sc/01_data/raw/cellranger_multi/2024-06-07_24054SC_Luu_P1_cellranger/per_sample_outs/count/sample_filtered_feature_bc_matrix")
-#createSeuratObject
-seurat_obj1 <- CreateSeuratObject(counts=data$'Gene Expression')
-seurat_obj1[['HTO']] <- CreateAssayObject(counts=data$'Antibody Capture')
-seurat_obj1 <- NormalizeData(seurat_obj1, assay= "HTO", normalization.method= "CLR")
-#KeepNo-zeroHTOCounts
-counts <- GetAssayData(seurat_obj1, assay = "HTO", layer = "counts")
-zero_count_cells <- colnames(counts[, colSums(counts) == 0])
-seurat_obj <- subset(seurat_obj1, cells = setdiff(colnames(seurat_obj1), zero_count_cells))
-seurat_obj <- HTODemux(seurat_obj, assay = "HTO", kfunc="kmeans", positive.quantile = 0.95)
-seurat_obj <- NormalizeData(seurat_obj, assay= "HTO", normalization.method= "CLR")
-print(table(seurat_obj$HTO_classification.global))
-FeatureScatter(seurat_obj, feature1= "Ms.Hashtag-1", feature2="Ms.Hashtag-2")
+linters: with_defaults(line_length_linter = line_length_linter(5000))
 
-# ###ExtraSingletsForAnalysis
-# singlets_P1 <- subset(seurat_obj, subset=HTO_classification.global == "Singlet")
-# hto_classification <- singlets_P1@meta.data$HTO_classification
+##################
+###LoadFileFrom10X with correct HTO names (sample instead of HTO label)
+##################
+# "~/car_t_sc/01_data/raw/cellranger_multi/2024-06-07_24054SC_Luu_P1_cellranger/per_sample_outs/count/sample_filtered_feature_bc_matrix"
+path_to_folders <- '~/car_t_sc/01_data/raw/cellranger_multi'
+path_to_count_matrices_in_folders <- 'per_sample_outs/count/sample_filtered_feature_bc_matrix'
+# path_to_raw_count_matrices_in_folders <- 'count/raw_feature_bc_matrix'
+
+pools <- list()
+
+subfolders <- list.dirs(path_to_folders)
+for (i in 1:length(subfolders)) {
+    folder <- subfolders[i]
+    count_matrix_path <- path.join(folder, path_to_count_matrices_in_folders)
+    seurat_obj <- import_data_to_seurat(count_matrix_path)
+    seurat_obj <- demultiplex(seurat_obj, i)
+    singlets <- delete_singlets(seurat_obj)
+    singlets <- quality_control(singlets)
+}
+
+##################
+#createSeuratObject
+##################
+import_data_to_seurat <- function(path){
+    data <- list()
+    data[[1]] <- Read10X(path)[['Gene Expression']]
+    data[[2]] <- Read10X(path, gene.column = 1)[['Antibody Capture']]
+    seurat_obj1 <- CreateSeuratObject(counts=data[[1]])
+    seurat_obj1[['HTO']] <- CreateAssayObject(counts=data[[2]])
+    return(seurat_obj1)
+}
+
+
+##################
+#KeepNo-zeroHTOCounts
+##################
+eliminate_zero_counts <- function(seurat_obj) {
+    counts <- GetAssayData(seurat_obj, assay = "HTO", layer = "counts")
+    zero_count_cells <- colnames(counts[, colSums(counts) == 0])
+    seurat_obj <- subset(seurat_obj, cells = setdiff(colnames(seurat_obj), zero_count_cells))
+    return(seurat_obj)
+}
+
+
+
+##################
+#Perform HTODemux
+##################
+demultiplex <- function(seurat_obj, pool_nr) {
+    norm =c(3,4,5,6,8)
+    if (pool_nr in norm) {
+        seurat_obj <- NormalizeData(seurat_obj, assay= "HTO", normalization.method= "CLR")
+    }
+    seurat_obj <- eliminate_zero_counts(seurat_obj)
+    if (i == 9) {
+        seurat_obj <- HTODemux(seurat_obj, assay = "HTO", kfunc="clara", positive.quantile = 0.99)
+    }
+    else {
+        seurat_obj <- HTODemux(seurat_obj, assay = "HTO", kfunc="kmeans", positive.quantile = 0.99)
+    }
+    return(seurat_obj)
+}
+
+# seurat_obj <- HTODemux(seurat_obj, assay = "HTO", kfunc="kmeans", positive.quantile = 0.99)
+# print(table(seurat_obj$HTO_classification.global))
+# print(table(seurat_obj$HTO_classification))
+# FeatureScatter(seurat_obj, feature1= "Ms.Hashtag-1", feature2="Ms.Hashtag-2")
+
+
+##################
+#Delete Singlets
+##################
+delete_singlets <- function(seurat_obj) {
+    singlets <- subset(seurat_obj, subset=HTO_classification.global == "Singlet")
+    hto_classification <- singlets@meta.data$HTO_classification
+    return(singlets)
+}
 # table(hto_classification)
-# #QCCheckine
-# singlets_P1[["percent.mt"]] <-PercentageFeatureSet(singlets_P1, pattern= "^mt-")
-# singlets_P1$percent.mt[is.nan(singlets_P1$percent.mt)] <- 0
-# singlets_P1 <-subset(singlets_P1, subset=nFeature_RNA >200 & nFeature_RNA <6000 & percent.mt <20)
+
+
+##################
+#Perform Quality Control
+##################
+quality_control <- function(singlets) {
+    singlets[["percent.mt"]] <-PercentageFeatureSet(singlets, pattern = "^mt-")
+    singlets$percent.mt[is.nan(singlets$percent.mt)] <- 0
+    singlets <-subset(singlets, subset=nFeature_RNA >200 & nFeature_RNA <6000 & percent.mt <20)
+    return(singlets)
+}
 # VlnPlot(singlets_P1, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol=3)
 
-# ###scRNAWorkflow
-# singlets_P1 <- FindVariableFeatures(singlets_P1)
-# #ConvertHumanCellCycleGenestoMouse
-# mmus_s = gorth(cc.genes.updated.2019$s.genes, source_organism = "hsapiens", target_organism = "mmusculus")$ortholog_name
-# mmus_g2m = gorth(cc.genes.updated.2019$g2m.genes, source_organism = "hsapiens", target_organism = "mmusculus")$ortholog_name
-# singlets_P1 <- NormalizeData(singlets_P1, assay = "RNA")
-# common_s <- intersect(mmus_s, rownames(singlets_P1))
-# common_g2m <- intersect(mmus_g2m, rownames(singlets_P1))
-# singlets_P1 <- CellCycleScoring(singlets_P1, s.features = common_s, g2m.features = common_g2m)
-# singlets_P1 <- ScaleData(singlets_P1, vars.to.regress = c("percent.mt", "S.Score", "G2M.Score"))
-# singlets_P1 <- RunPCA(singlets_P1, features = VariableFeatures(object = singlets_P1))
+
+##################
+#Perform cell cycle correction and normalize
+##################
+singlets_P1 <- FindVariableFeatures(singlets_P1)
+#ConvertHumanCellCycleGenestoMouse
+mmus_s = gorth(cc.genes.updated.2019$s.genes, source_organism = "hsapiens", target_organism = "mmusculus")$ortholog_name
+mmus_g2m = gorth(cc.genes.updated.2019$g2m.genes, source_organism = "hsapiens", target_organism = "mmusculus")$ortholog_name
+singlets_P1 <- NormalizeData(singlets_P1, assay = "RNA")
+common_s <- intersect(mmus_s, rownames(singlets_P1))
+common_g2m <- intersect(mmus_g2m, rownames(singlets_P1))
+singlets_P1 <- CellCycleScoring(singlets_P1, s.features = common_s, g2m.features = common_g2m)
+singlets_P1 <- ScaleData(singlets_P1, vars.to.regress = c("percent.mt", "S.Score", "G2M.Score"))
+singlets_P1 <- RunPCA(singlets_P1, features = VariableFeatures(object = singlets_P1))
 # ElbowPlot(singlets_P1, ndims=50)
-# singlets_P1 <- FindNeighbors(singlets_P1, dims = 1:15)
-# singlets_P1 <- FindClusters(singlets_P1, resolution = 0.5)
-# singlets_P1 <- RunUMAP(singlets_P1, dims = 1:15)
+singlets_P1 <- FindNeighbors(singlets_P1, dims = 1:15)
+singlets_P1 <- FindClusters(singlets_P1, resolution = 0.5)
+singlets_P1 <- RunUMAP(singlets_P1, dims = 1:15)
 # DimPlot(singlets_P1, reduction = "umap",group.by= "hash.ID", label = TRUE)
-# FeaturePlot(singlets_P1, features="genes_of_interested")
-# DotPlot(singlets_P1, features="genes_of_interested", group.by="hash.ID")
 
-# ###ProjecTILsDefaultParameters
-# ref.cd4 <- load.reference.map("/path/to/CD4T_human_ref_v2.rds")
-# ref.cd8 <- load.reference.map("/path/to/CD8T_human_ref_v1.rds")
-# #ProjecTILstoHumanCD4/CD8
-# ncores = 8
-# DefaultAssay(ref.cd4) <- "integrated"
-# query.projected <- ProjecTILs.classifier(query= test1, ref= ref.cd4, reduction= "umap", ncores = ncores, split.by="hash.ID")
-# table(query.projected$functional.cluster, useNA="ifany")
-# DefaultAssay(ref.cd8) <- "integrated"
-# query.projected <- ProjecTILs.classifier(query= query.projected, ref= ref.cd8, reduction= "umap", ncores = ncores, split.by="hash.ID", overwrite=FALSE)
-# table(query.projected$functional.cluster, useNA="ifany")
-# genes4radar <- c("Mki67", "Foxp3", "Cd4", "Cd8a", "Tcf7", "Ccr7", "Gzmb", "Gzmk", "Pdcd1", "Havcr2", "Tox")
-# # Check and remove cells with NA in functional.cluster
-# query.projected <- query.projected[, !is.na(query.projected@meta.data$functional.cluster)]
-# print(sum(is.na(query.projected@meta.data$functional.cluster)))
-# # Extract genes_interested seurat object for RadarPlot
-# new_obj <- subset(query.projected, features=genes4radar)
-# gene_names <- rownames(new_obj)
-# uppercase_gene_names <- toupper(gene_names)
-# rownames(new_obj@assays$RNA) <- uppercase_gene_names
-# rownames(new_obj)
-# plot.states.radar(ref.cd4, new_obj, genes4radar=uppercase_gene_names, min.cells=1)
-# plot.states.radar(ref.cd8, new_obj, genes4radar=uppercase_gene_names, min.cells=1)
 
+##################
+# ###ProjecTILs on each sample respectively
+##################
+ref.cd8 <- load.reference.map("01_data/reference_datasets_project_TILs/CD8T_human_ref_v1.rds")
+ref.cd4 <- load.reference.map("01_data/reference_datasets_project_TILs/CD4T_human_ref_v2.rds")
+ncores = 8
+DefaultAssay(ref.cd4) <- "integrated"
+query.projected <- ProjecTILs.classifier(query= singlets_P1, ref= ref.cd4, reduction= "umap", ncores = ncores, split.by="hash.ID")
+table(query.projected$functional.cluster, useNA="ifany")
+DefaultAssay(ref.cd8) <- "integrated"
+query.projected <- ProjecTILs.classifier(query= query.projected, ref= ref.cd8, reduction= "umap", ncores = ncores, split.by="hash.ID", overwrite=FALSE)
+table(query.projected$functional.cluster, useNA="ifany")
+genes4radar <- c("Mki67", "Foxp3", "Cd4", "Cd8a", "Tcf7", "Ccr7", "Gzmb", "Gzmk", "Pdcd1", "Havcr2", "Tox")
+# Check and remove cells with NA in functional.cluster
+query.projected <- query.projected[, !is.na(query.projected@meta.data$functional.cluster)]
+print(sum(is.na(query.projected@meta.data$functional.cluster)))
+# Extract genes_interested seurat object for RadarPlot
+new_obj <- subset(query.projected, features=genes4radar)
+gene_names <- rownames(new_obj)
+uppercase_gene_names <- toupper(gene_names)
+rownames(new_obj@assays$RNA) <- uppercase_gene_names
+rownames(new_obj)
+plot.states.radar(ref.cd4, new_obj, genes4radar=uppercase_gene_names, min.cells=1)
+plot.states.radar(ref.cd8, new_obj, genes4radar=uppercase_gene_names, min.cells=1)
+
+
+###################
+#safe data
+###################
 # save.image("/mnt/raw-seq/Maik-scRNAMouse/2024-06-07_24054SC_Luu_P1_cellranger/P1_workspace.RData")
 
-# ###scRNA-Integration
-# #load("/path/to/saved.RData")
 
-# ###AddMetaInfo
-# #P1
-# metadata <- P1@meta.data
-# hashtag_to_metadata <- list(
-#   "Ms.Hashtag-1" = list(pool = "P1", Mouse_ID = "in_vitro", Location = "cultured", Day = 0, Condition = "C"),
-#   "Ms.Hashtag-2" = list(pool = "P1", Mouse_ID = "in_vitro", Location = "cultured", Day = 0, Condition = "P"),
-#   "Ms.Hashtag-3" = list(pool = "P1", Mouse_ID = "in_vitro", Location = "cultured", Day = 0, Condition = "DM")
-# )
-# metadata$pool <- NA
-# metadata$Mouse_ID <- NA
-# metadata$Location <- NA
-# metadata$Day <- NA
-# metadata$Condition <- NA
-# for (hashtag in names(hashtag_to_metadata)) {
-#   idx <- which(metadata$hash.ID == hashtag)
-#   metadata$pool[idx] <- hashtag_to_metadata[[hashtag]]$pool
-#   metadata$Mouse_ID[idx] <- hashtag_to_metadata[[hashtag]]$Mouse_ID
-#   metadata$Location[idx] <- hashtag_to_metadata[[hashtag]]$Location
-#   metadata$Day[idx] <- hashtag_to_metadata[[hashtag]]$Day
-#   metadata$Condition[idx] <- hashtag_to_metadata[[hashtag]]$Condition
-# }
-# P1@meta.data <- metadata
-# #AddMetadataForP2-P9
+###################
+#continue with integrating all pools
+###################
+#load("/path/to/saved.RData")
 
+#AddMetaInfo
 # ###IntegrationOfNineObjects
 # AAA <- list(P1, P2, P3, P4, P5, P6, P7, P8, P9)
 # AAA <- lapply(AAA, function(x) {
