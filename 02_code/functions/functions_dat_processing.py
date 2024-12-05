@@ -136,7 +136,7 @@ def quality_control(adatas: list, method = 'mad'):
             adata.obs["outlier"] = (
                 is_mad_outlier(adata, "total_counts", 5) #log1p_
                 |  is_mad_outlier(adata, "n_genes_by_counts", 5) #log1p_
-                |  is_mad_outlier(adata, "pct_counts_mt", 20) 
+                |  is_mad_outlier(adata, "pct_counts_mt", 5) 
                 # |  is_mad_outlier(adata, "pct_counts_in_top_20_genes", 5)
                 |  (adata.obs["pct_counts_mt"] > 20)
             )
