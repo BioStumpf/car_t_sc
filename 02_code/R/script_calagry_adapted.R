@@ -32,7 +32,7 @@ import_data_to_seurat <- function(path){
     data[[1]] <- Read10X(path)[['Gene Expression']]
     data[[2]] <- Read10X(path, gene.column = 1)[['Antibody Capture']]
     seurat_obj1 <- CreateSeuratObject(counts=data[[1]])
-    seurat_obj1[['HTO']] <- CreateAssayObject(counts=data[[2]])
+    seurat_obj1[['HTO']] <- CreateAssayObject(counts=data[[2]] + 1)
     return(seurat_obj1)
 }
 
@@ -155,7 +155,9 @@ for (i in 1:length(subfolders)) {
     folder <- subfolders[i]
     count_matrix_path <- file.path(folder, path_to_count_matrices_in_folders)
     seurat_obj <- import_data_to_seurat(count_matrix_path)
-    seurat_obj <- demultiplex(seurat_obj, i)
+    seurat_obj <- NormalizeData(seurat_obj, assay= "HTO", normalization.method= "CLR")
+    seurat_obj <- HTODemux(seurat_obj, assay = "HTO", kfunc="kmeans", positive.quantile = 0.99)
+    # seurat_obj <- demultiplex(seurat_obj, i)
     singlets <- subset(seurat_obj, subset=HTO_classification.global == "Singlet")
     singlets <- quality_control(singlets)
     singlets <- further_processing(singlets)
@@ -173,6 +175,8 @@ for (i in 1:length(subfolders)) {
 path_p1 <- "~/car_t_sc/01_data/raw/cellranger_multi/2024-06-07_24054SC_Luu_P1_cellranger/per_sample_outs/count/sample_filtered_feature_bc_matrix"
 seurat_obj <- import_data_to_seurat(path_p1)
 #demultiplex
+seurat_obj <- NormalizeData(seurat_obj, assay= "HTO", normalization.method= "CLR")
+seurat_obj <- HTODemux(seurat_obj, assay = "HTO", kfunc="kmeans", positive.quantile = 0.99)
 seurat_obj <- demultiplex(seurat_obj, 1)
 print(table(seurat_obj$HTO_classification.global))
 print(table(seurat_obj$HTO_classification))
@@ -207,7 +211,7 @@ save(singlets, file = file_path)
 ##################
 #import all the data
 pools = list()
-folder <- "~/car_t_sc/01_data/processed/preprocessed_pools_R/RData_files"
+folder <- "~/car_t_sc/01_data/processed/preprocessed_pools_R/RData_files/processed_calagry"
 files <- list.files(folder)
 # file <- file.path(folder, "P1_singlets_processed.RData")
 for (i in 1:length(files)) {
@@ -241,32 +245,32 @@ AAA <- lapply(seq_along(pools), function(i) {
 integrated_data <- merge(AAA[[1]], AAA[2:9])
 integrated_data <- JoinLayers(integrated_data, assay = "RNA")
 
-anchors <- FindIntegrationAnchors(object.list = AAA, dims=1:30)
-integrated_data <- IntegrateData(anchorset = anchors, dims=1:30)
+# anchors <- FindIntegrationAnchors(object.list = AAA, dims=1:30)
+# integrated_data <- IntegrateData(anchorset = anchors, dims=1:30)
 
 
 ###safe the merged object
 file_path <- "~/car_t_sc/01_data/processed/merged_and_processed/just_merged_calagry_exact.RData"
-save(singlets, file = file_path)
+save(integrated_data, file = file_path)
 
 load(file_path)
 
 ##################
 # #pre-processing of merged data
 ##################
-integrated_data <- NormalizeData(integrated_data)
-integrated_data <- ScaleData(integrated_data, verbose = FALSE)
-integrated_data <- RunPCA(integrated_data, npcs = 30, verbose = FALSE)
-integrated_data <- FindNeighbors(integrated_data, reduction = "pca", dims = 1:30)
-integrated_data <- FindClusters(integrated_data, resolution = 0.5)
-integrated_data <- RunUMAP(integrated_data, dims = 1:30)
+# integrated_data <- NormalizeData(integrated_data)
+# integrated_data <- ScaleData(integrated_data, verbose = FALSE)
+# integrated_data <- RunPCA(integrated_data, npcs = 30, verbose = FALSE)
+# integrated_data <- FindNeighbors(integrated_data, reduction = "pca", dims = 1:30)
+# integrated_data <- FindClusters(integrated_data, resolution = 0.5)
+# integrated_data <- RunUMAP(integrated_data, dims = 1:30)
 
 ##################
 #add meta data to merged object from object list, since it is not kept when integrating
 ##################
-metadata_combined <- do.call(rbind, lapply(AAA, function(x) x@meta.data))
+# metadata_combined <- do.call(rbind, lapply(AAA, function(x) x@meta.data))
 # rownames(metadata_combined) <- metadata_combined$cell
-integrated_data <- AddMetaData(integrated_data, metadata_combined)
+# integrated_data <- AddMetaData(integrated_data, metadata_combined)
 # DimPlot(integrated_data, reduction="umap", group.by="pool")
 
 ##################
@@ -288,7 +292,7 @@ Integrated <- subset(integrated_data, subset = Location != "dLN")
 # #now using the merged RNA assay for further STACAS integration, not the intgrated assay, so in theory, the whole process is just in order to merge the seurat objects 
 ##################
 # DefaultAssay(Integrated) <- "RNA"
-Integrated <- JoinLayers(Integrated, assay = "RNA")
+# Integrated <- JoinLayers(Integrated, assay = "RNA")
 Integrated <- NormalizeData(Integrated)
 Integrated <- FindVariableFeatures(Integrated)
 Integrated <- ScaleData(Integrated, verbose=FALSE)
@@ -312,7 +316,7 @@ DimPlot(stacas, reduction="umap", group.by="pool")
 ##################
 # ###ScgateForCellSelection
 ##################
-scgate_DB <- Integrated
+# scgate_DB <- Integrated
 scgate_DB <- get_scGateDB()
 stacas_scgate <- scGate(stacas, model=scgate_DB$mouse$generic)
 DimPlot(stacas_scgate, group.by="is.pure_Tcell")
@@ -325,6 +329,12 @@ FeaturePlot(stacas_scgate, features=c("Tcell_UCell", "CD4T_UCell", "CD8T_UCell")
 stacas_Tcells <- subset(stacas_scgate, subset = is.pure_Tcell == "Pure")
 DefaultAssay(stacas_Tcells) <- "RNA"
 stacas_Tcells <- NormalizeData(stacas_Tcells)
+
+
+file_path <- "~/car_t_sc/01_data/processed/merged_and_processed/merged_1xintegrated_pureTCs_calagry_exact.RData"
+save(stacas_Tcells, file = file_path)
+
+load(file_path)
 
 #new
 stacas_Tcells <- RunPCA(stacas_Tcells)
@@ -342,20 +352,19 @@ stacas_Tcells <- FindVariableFeatures(stacas_Tcells)
 ##################
 # ###STACASIntegration again
 ##################
-stacas_Tcells2 <- NormalizeData(stacas_Tcells) |>
+stacas_Tcells <- NormalizeData(stacas_Tcells) |>
  SplitObject(split.by="pool") |>
  Run.STACAS()
-stacas_Tcells2 <- RunPCA(stacas_Tcells2)
+stacas_Tcells <- RunPCA(stacas_Tcells)
 # ElbowPlot(stacas_Tcells, ndims=50)
-stacas_Tcells2 <- FindNeighbors(stacas_Tcells2, dims = 1:15)
-stacas_Tcells2 <- FindClusters(stacas_Tcells2, resolution = 0.5)
-stacas_Tcells2 <- RunUMAP(stacas_Tcells2, dims = 1:15)
-DimPlot(stacas_Tcells2, reduction = "umap",group.by= "pool")
+stacas_Tcells <- FindNeighbors(stacas_Tcells, dims = 1:15)
+stacas_Tcells <- FindClusters(stacas_Tcells, resolution = 0.5)
+stacas_Tcells <- RunUMAP(stacas_Tcells, dims = 1:15)
+DimPlot(stacas_Tcells, reduction = "umap",group.by= "pool")
 
 
-file_path <- "~/car_t_sc/01_data/processed/merged_and_processed/merged_integrated_xTcell_subtypes_calagry_exact.RData"
-save(singlets, file = file_path)
-
+file_path <- "~/car_t_sc/01_data/processed/merged_and_processed/merged_2xintegrated_scaled_pureTCs_calagry_exact.RData"
+save(stacas_Tcells, file = file_path)
 
 load(file_path)
 
@@ -394,11 +403,8 @@ dittoBarPlot(new_cd4, x.reorder=c(1,3,2), group.by="day", var="functional.cluste
 # save.image("/mnt/raw-seq/Maik-scRNAMouse/Analysis/Integrated.RData")
 
 
+file_path <- "~/car_t_sc/01_data/processed/merged_and_processed/merged_1xintegrated_pureTCs_annotated_calagry_exact.RData"
+save(stacas_Tcells, file = file_path)
 
 
-DefaultAssay(stacas_Tcells2) <- "RNA"
-scgate.projected2 <- ProjecTILs.classifier(query= stacas_Tcells2, ref= ref.cd4, reduction= "umap", skip.normalize=TRUE) 
-scgate.projected2 <- ProjecTILs.classifier(query= scgate.projected2, ref= ref.cd8, reduction= "umap", overwrite=FALSE)
-scgate.projected2$Day.Condition <- paste(scgate.projected2$day, scgate.projected2$condition, sep="_")
-table(scgate.projected2$functional.cluster, useNA = "ifany")
-DimPlot(scgate.projected2, group.by="functional.cluster", cols=c("CD4.CTL_Exh"= "#E69F00", "CD4.CTL_GNLY"="#56B4E9", "CD4.NaiveLike"= "#009E73", "CD4.Tfh"= "#F0E442", "CD4.Th17"= "#0072B2", "CD4.Treg"="#D55E00", "CD4.CTL_EOMES"="#CC79A7", "CD8.CM"="#800000", "CD8.EM"= "#9ACD32", "CD8.MAIT"="#2F4F4F", "CD8.NaiveLike"="#FF4500", "CD8.TEMRA"= "#FF6347", "CD8.TEX"= "#9400D3", "CD8.TPEX"= "#7FFFD4"))
+Convert("~/car_t_sc/01_data/processed/preprocessed_pools_R/hdf5_files/P1_singlets_processed.h5Seurat", dest = "h5ad")
