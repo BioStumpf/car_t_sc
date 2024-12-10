@@ -363,7 +363,7 @@ stacas_Tcells <- RunUMAP(stacas_Tcells, dims = 1:15)
 DimPlot(stacas_Tcells, reduction = "umap",group.by= "pool")
 
 
-file_path <- "~/car_t_sc/01_data/processed/merged_and_processed/merged_2xintegrated_scaled_pureTCs_calagry_exact.RData"
+file_path <- "~/car_t_sc/01_data/processed/merged_and_processed/merged_1xintegrated_pureTCs_calagry_exact.RData"
 save(stacas_Tcells, file = file_path)
 
 load(file_path)
@@ -400,11 +400,13 @@ VlnPlot(new_obj, features=c("Tnf", "Ifng", "Il2", "Gzmb", "Tbx21", "Foxp3"), gro
 # VlnPlot(new_cd8, features=c("Tnf", "Ifng", "Il2", "Gzmb", "Tbx21", "Foxp3"), group.by="day", split.by="condition", pt.size=0)
 dittoBarPlot(new_cd4, x.reorder=c(1,3,2), group.by="day", var="functional.cluster", split.by="condition") | dittoBarPlot(new_cd8, x.reorder=c(1,3,2), group.by="day", var="functional.cluster", split.by="condition")
 
-# save.image("/mnt/raw-seq/Maik-scRNAMouse/Analysis/Integrated.RData")
 
+#save the data
+file_path <- "./01_data/processed/merged_and_processed/merged_1xintegrated_scaled_pureTCs_annotated_calagry_exact.RData"
+save(scgate.projected, file = file_path)
 
-file_path <- "~/car_t_sc/01_data/processed/merged_and_processed/merged_1xintegrated_pureTCs_annotated_calagry_exact.RData"
-save(stacas_Tcells, file = file_path)
+#convert to andata
+file_path <- "./01_data/processed/merged_and_processed/merged_1xintegrated_scaled_pureTCs_annotated_calagry_exact.h5Seurat"
+SaveH5Seurat(scgate.projected, filename = file_path)
+Convert(file_path, dest = "h5ad")
 
-
-Convert("~/car_t_sc/01_data/processed/preprocessed_pools_R/hdf5_files/P1_singlets_processed.h5Seurat", dest = "h5ad")
