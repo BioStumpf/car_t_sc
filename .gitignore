@@ -7,3 +7,4 @@ ref_TILAtlas_mouse_v1.rds
 02_code/mapping/**/*.out
 .Rhistory
 .RData
+.lintr
