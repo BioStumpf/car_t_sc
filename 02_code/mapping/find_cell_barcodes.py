@@ -6,25 +6,19 @@ import numpy as np
 import pandas as pd
 
 class aligned_read_info:
-    def __init__(self, id, motif, cellbarcode=None):
+    def __init__(self, id, motif, cellbarcode):
         self.id = id
         self.motif = motif
         self.cellbarcode = cellbarcode
-
-def find_read_in_sam_reads(read_id, sam_aligned_reads):
-    aligned_read_ids = [read.id for read in sam_aligned_reads]
-    if read_id in aligned_read_ids:
-        read_id_idx = aligned_read_ids.index(read_id)
-    else:
-        read_id_idx = -1
-    return read_id_idx
-
 
 def run(args):
     sam_file = open(args.sam)
     fastq_file = gzip.open(args.fastq, 'rt')
     fout = open(args.output, "w")
 
+    #prepare fastqs for finding the matched read id and corresponding cellbarcodes
+    fastq_lines = fastq_file.readlines()
+    stripped_ids_dict = {line.split()[0]: idx for idx, line in enumerate(fastq_lines[0:len(fastq_lines):4])} #use dictionary for o(1) searching
     #First we need the IDs from the SAM file, ergo we need to read it and store the IDs in a list
     aligned_reads = []
     for line in sam_file:
@@ -33,40 +27,16 @@ def run(args):
             continue
         #split the line by tab and take the first entry == id
         line_elements = line.split('\t')
-        id = line_elements[0]
+        read_id = f'@{line_elements[0]}'
         mapped_motif = line_elements[2]
-        aligned_reads.append(aligned_read_info(id, mapped_motif))
-
-    # fout.write('\n'.join(aligned_ids) + '\n')
-    # fout.close()
-
-    #second read the ids from the fastq file line by line and check if the id matches with the ids extracted from the sam file
-    # aligned_id =''
-    # read_indx = -1
-    for line in fastq_file:
-        if line.startswith('@'):
-            #read only the first id part, since bowtie2 (the aligner that generated the SAM file) strips the id of the rest anyway
-            read_id = line.split()[0][1:]
-            #find the index of the current read_id within the sam file 
-            read_indx = find_read_in_sam_reads(read_id, aligned_reads)
-            #check if the current read_id present in the sam file
-            # if read_indx != -1:
-                #if yes, safe the id and the motif its binding to
-                # aligned_id = read_id
-                # motif = aligned_reads[read_indx].motif
-            #after reading the id line, the sequence line is read, if you safed the id before, its because it matches the aligned ids from the SAM file, ergo we extract the 10x sequence
-        elif line[0] != '@' and read_indx != -1:
-            #extract the first 16 bases of the sequence (==10x seuquence)
-            cell_barcode = line.strip()[:16]
-            aligned_reads[read_indx].cellbarcode = cell_barcode
-            #write the 10x barcode into the output file
-            # fout.write(cell_barcode + '\t' + motif + '\n')
-            #set the aligned_id to nothing to avoid reading none sequence lines (the + and the quality line)
-            # aligned_id = ''
-            read_indx = -1
-            #after reading the sequence line, there are 2 more lines, these do not contain the '@' at the beginning of the line, however the aligned_id was previously set to nothing, so the elif condition from before is not met
-        else:
-            continue
+        #now search the mapped read_id within the fastq file
+        read_indx = stripped_ids_dict[read_id]
+        #look for the barcode index (note a fastq file is a multiple of 4)
+        barcode_indx = (read_indx * 4 ) + 1
+        barcode = fastq_lines[barcode_indx][:16]
+        aligned_reads.append(aligned_read_info(read_id, mapped_motif, barcode))
+    sam_file.close()
+    fastq_file.close()
 
     #need function that checks the aligned_reads list for multiplets, ergo counts how often specific 10x barcodes occur 
     #find unique motifs and cellbarcodes 
