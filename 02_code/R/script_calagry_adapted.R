@@ -211,7 +211,7 @@ save(singlets, file = file_path)
 ##################
 #import all the data
 pools = list()
-folder <- "~/car_t_sc/01_data/processed/preprocessed_pools_R/RData_files/processed_calagry"
+folder <- "~/car_t_sc/01_data/processed/preprocessed_pools_R/RData_files/processed_pseudocount"
 files <- list.files(folder)
 # file <- file.path(folder, "P1_singlets_processed.RData")
 for (i in 1:length(files)) {
@@ -250,7 +250,7 @@ integrated_data <- JoinLayers(integrated_data, assay = "RNA")
 
 
 ###safe the merged object
-file_path <- "~/car_t_sc/01_data/processed/merged_and_processed/just_merged_calagry_exact.RData"
+file_path <- "~/car_t_sc/01_data/processed/merged_and_processed/just_merged_pseudocount.RData"
 save(integrated_data, file = file_path)
 
 load(file_path)
@@ -330,18 +330,17 @@ stacas_Tcells <- subset(stacas_scgate, subset = is.pure_Tcell == "Pure")
 DefaultAssay(stacas_Tcells) <- "RNA"
 stacas_Tcells <- NormalizeData(stacas_Tcells)
 
-
-file_path <- "~/car_t_sc/01_data/processed/merged_and_processed/merged_1xintegrated_pureTCs_calagry_exact.RData"
-save(stacas_Tcells, file = file_path)
-
-load(file_path)
-
 #new
 stacas_Tcells <- RunPCA(stacas_Tcells)
 stacas_Tcells <- FindNeighbors(stacas_Tcells, dims = 1:15)
 stacas_Tcells <- FindClusters(stacas_Tcells, resolution = 0.5)
 stacas_Tcells <- RunUMAP(stacas_Tcells, dims = 1:15)
 DimPlot(stacas_Tcells, reduction = "umap",group.by= "pool")
+
+file_path <- "~/car_t_sc/01_data/processed/merged_and_processed/merged_1xintegrated_pureTCs_pseudocount.RData"
+save(stacas_Tcells, file = file_path)
+
+load(file_path)
 
 ##################
 # #RegressOutCellCycle&MitochondrialGenes
@@ -402,11 +401,11 @@ dittoBarPlot(new_cd4, x.reorder=c(1,3,2), group.by="day", var="functional.cluste
 
 
 #save the data
-file_path <- "./01_data/processed/merged_and_processed/merged_1xintegrated_scaled_pureTCs_annotated_calagry_exact.RData"
+file_path <- "./01_data/processed/merged_and_processed/merged_1xintegrated_scaled_pureTCs_annotated_pseudocount.RData"
 save(scgate.projected, file = file_path)
 
 #convert to andata
-file_path <- "./01_data/processed/merged_and_processed/merged_1xintegrated_scaled_pureTCs_annotated_calagry_exact.h5Seurat"
+file_path <- "./01_data/processed/merged_and_processed/merged_1xintegrated_scaled_pureTCs_annotated_pseudocount.h5Seurat"
 SaveH5Seurat(scgate.projected, filename = file_path)
 Convert(file_path, dest = "h5ad")
 
