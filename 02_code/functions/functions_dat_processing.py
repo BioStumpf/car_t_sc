@@ -163,7 +163,7 @@ def quality_control(adatas: list, method = 'mad'):
 
 
 #function for plotting the qc metrics
-def plot_qc_metrics(adatas: list, adatas_qc: list):
+def plot_qc_metrics(adatas: list, adatas_qc: list, save_dir=None):
     for i, (adata, adata_qc) in enumerate(zip(adatas, adatas_qc)):
         fig, axs = plt.subplots(1, 3, figsize=(16, 6))
         cells_before = adata.obs.shape[0]
@@ -188,6 +188,11 @@ def plot_qc_metrics(adatas: list, adatas_qc: list):
         fig.legend(handles, labels, loc='upper right', bbox_to_anchor=(0.9, 1))
         for ax in axs:
             ax.legend_.remove()
+
+        if save_dir:
+            os.makedirs(save_dir, exist_ok=True)
+            file_path = os.path.join(save_dir, f'qc_metrics_p{i+1}.png')
+            plt.savefig(file_path, bbox_inches='tight')
         plt.show()
 
 #transfer HTOs from actual matrix to adata.obs (to use hashsolo later on in the workflow and not falsify quality control metrics)
