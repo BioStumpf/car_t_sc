@@ -7,7 +7,6 @@ import anndata as ad
 import numpy as np
 import pandas as pd
 import os
-import regex as re
 
 #This function extracts a specific day and condition from the adata objecs classification
 def extract_DayCond(days, conditions, classification):

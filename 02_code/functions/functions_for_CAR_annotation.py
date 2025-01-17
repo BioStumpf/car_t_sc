@@ -1,10 +1,16 @@
+import anndata as ad
+import numpy as np
+import pandas as pd
+import os
+import regex as re
+
 #this is to read the cellbarcodes that matched to the cart receptor
 def read_and_merge_CAR_annotation(Folder):
     files = sorted(os.listdir(Folder))
     VDJ_GEX_list = []
     for regex in ['.*GEX', '.*VDJ']:
         r = re.compile(regex)
-        file_subset = list(filter(r.match, files))
+        file_subset = list(filter(r.match, files)) #r.match generates a function that takes any string as an input an returns true or false depending on whether the string could be matched
         pools = [pd.read_csv(os.path.join(Folder, file)) for file in file_subset]
         VDJ_GEX_list.append(pools)
         # print(file_subset)

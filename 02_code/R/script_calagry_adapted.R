@@ -1,19 +1,19 @@
 
-library('Seurat') #5.1.0
+library("Seurat") #5.1.0
 library('ProjecTILs') #3.3.1
 # library('scRepertoire') #1.12.0
 library('STACAS') #2.2.2
 library('scGate') #1.6.2
 library('dittoSeq') #1.14.3
-library('Biostrings') #2.70.3
+# library('Biostrings') #2.70.3
 library('gprofiler2')
-library('SeuratDisk')
-library('SeuratData')
+# library('SeuratDisk')
+# library('SeuratData')
 library('stringr')
+library('sceasy')
 set.seed(1234)
 
-
-# install.packages(c("scGate", "BiocManager"))
+# install.packages(c("scGate"F, "BiocManager"))
 # BiocManager::install(c("Biostrings","dittoSeq", "scRepertoire"))
 # BiocManager::install("dittoSeq")
 # BiocManager::install("scRepertoire")
@@ -32,7 +32,7 @@ import_data_to_seurat <- function(path){
     data[[1]] <- Read10X(path)[['Gene Expression']]
     data[[2]] <- Read10X(path, gene.column = 1)[['Antibody Capture']]
     seurat_obj1 <- CreateSeuratObject(counts=data[[1]])
-    seurat_obj1[['HTO']] <- CreateAssayObject(counts=data[[2]] + 1)
+    seurat_obj1[['HTO']] <- CreateAssayObject(counts=data[[2]])
     return(seurat_obj1)
 }
 
@@ -115,29 +115,29 @@ further_processing <- function(singlets) {
 # ###ProjecTILs on each sample respectively
 ##################
 
-project_TILs_single_pool <- function(singlets) {
-    ref.cd8 <- load.reference.map("~/car_t_sc/01_data/reference_datasets_project_TILs/CD8T_human_ref_v1.rds")
-    ref.cd4 <- load.reference.map("~/car_t_sc/01_data/reference_datasets_project_TILs/CD4T_human_ref_v2.rds")
-    ncores = 8
-    DefaultAssay(ref.cd4) <- "integrated"
-    query.projected <- ProjecTILs.classifier(query= singlets, ref= ref.cd4, reduction= "umap", ncores = ncores, split.by="hash.ID")
-    # table(query.projected$functional.cluster, useNA="ifany")
-    DefaultAssay(ref.cd8) <- "integrated"
-    query.projected <- ProjecTILs.classifier(query= query.projected, ref= ref.cd8, reduction= "umap", ncores = ncores, split.by="hash.ID", overwrite=FALSE)
-    # table(query.projected$functional.cluster, useNA="ifany")
-    genes4radar <- c("Mki67", "Foxp3", "Cd4", "Cd8a", "Tcf7", "Ccr7", "Gzmb", "Gzmk", "Pdcd1", "Havcr2", "Tox")
-    # Check and remove cells with NA in functional.cluster
-    query.projected <- query.projected[, !is.na(query.projected@meta.data$functional.cluster)]
-    # print(sum(is.na(query.projected@meta.data$functional.cluster)))
-    # Extract genes_interested seurat object for RadarPlot
-    new_obj <- subset(query.projected, features=genes4radar)
-    gene_names <- rownames(new_obj)
-    uppercase_gene_names <- toupper(gene_names)
-    rownames(new_obj@assays$RNA) <- uppercase_gene_names
-    rownames(new_obj)
-    # plot.states.radar(ref.cd4, new_obj, genes4radar=uppercase_gene_names, min.cells=1)
-    # plot.states.radar(ref.cd8, new_obj, genes4radar=uppercase_gene_names, min.cells=1)
-}
+# project_TILs_single_pool <- function(singlets) {
+#     ref.cd8 <- load.reference.map("~/car_t_sc/01_data/reference_datasets_project_TILs/CD8T_human_ref_v1.rds")
+#     ref.cd4 <- load.reference.map("~/car_t_sc/01_data/reference_datasets_project_TILs/CD4T_human_ref_v2.rds")
+#     ncores = 8
+#     DefaultAssay(ref.cd4) <- "integrated"
+#     query.projected <- ProjecTILs.classifier(query= singlets, ref= ref.cd4, reduction= "umap", ncores = ncores, split.by="hash.ID")
+#     # table(query.projected$functional.cluster, useNA="ifany")
+#     DefaultAssay(ref.cd8) <- "integrated"
+#     query.projected <- ProjecTILs.classifier(query= query.projected, ref= ref.cd8, reduction= "umap", ncores = ncores, split.by="hash.ID", overwrite=FALSE)
+#     # table(query.projected$functional.cluster, useNA="ifany")
+#     genes4radar <- c("Mki67", "Foxp3", "Cd4", "Cd8a", "Tcf7", "Ccr7", "Gzmb", "Gzmk", "Pdcd1", "Havcr2", "Tox")
+#     # Check and remove cells with NA in functional.cluster
+#     query.projected <- query.projected[, !is.na(query.projected@meta.data$functional.cluster)]
+#     # print(sum(is.na(query.projected@meta.data$functional.cluster)))
+#     # Extract genes_interested seurat object for RadarPlot
+#     new_obj <- subset(query.projected, features=genes4radar)
+#     gene_names <- rownames(new_obj)
+#     uppercase_gene_names <- toupper(gene_names)
+#     rownames(new_obj@assays$RNA) <- uppercase_gene_names
+#     rownames(new_obj)
+#     # plot.states.radar(ref.cd4, new_obj, genes4radar=uppercase_gene_names, min.cells=1)
+#     # plot.states.radar(ref.cd8, new_obj, genes4radar=uppercase_gene_names, min.cells=1)
+# }
 
 
 
@@ -155,9 +155,9 @@ for (i in 1:length(subfolders)) {
     folder <- subfolders[i]
     count_matrix_path <- file.path(folder, path_to_count_matrices_in_folders)
     seurat_obj <- import_data_to_seurat(count_matrix_path)
-    seurat_obj <- NormalizeData(seurat_obj, assay= "HTO", normalization.method= "CLR")
-    seurat_obj <- HTODemux(seurat_obj, assay = "HTO", kfunc="kmeans", positive.quantile = 0.99)
-    # seurat_obj <- demultiplex(seurat_obj, i)
+    # seurat_obj <- NormalizeData(seurat_obj, assay= "HTO", normalization.method= "CLR")
+    # seurat_obj <- HTODemux(seurat_obj, assay = "HTO", kfunc="kmeans", positive.quantile = 0.99)
+    seurat_obj <- demultiplex(seurat_obj, i)
     singlets <- subset(seurat_obj, subset=HTO_classification.global == "Singlet")
     singlets <- quality_control(singlets)
     singlets <- further_processing(singlets)
@@ -250,7 +250,7 @@ integrated_data <- JoinLayers(integrated_data, assay = "RNA")
 
 
 ###safe the merged object
-file_path <- "~/car_t_sc/01_data/processed/merged_and_processed/just_merged_pseudocount.RData"
+file_path <- "~/car_t_sc/01_data/processed/merged_and_processed/just_merged_calagry_exact.RData"
 save(integrated_data, file = file_path)
 
 load(file_path)
@@ -304,6 +304,26 @@ DimPlot(Integrated, reduction="umap", group.by="Location")
 
 
 ##################
+# Saving
+##################
+file_path <- "~/car_t_sc/01_data/processed/merged_and_processed/merged_calagry_exact_TIL_only.RData"
+save(Integrated, file = file_path)
+
+# #now convert it into V3 assay, since this one can be transferred reliably into h5ad
+# Integrated[['RNA3']] <- as(object = Integrated[['RNA']], Class = "Assay")
+# DefaultAssay(Integrated) <- "RNA3"
+# Integrated[["RNA"]] <- NULL
+# Integrated[["HTO"]] <- NULL
+# Integrated <- RenameAssays(object = Integrated, RNA3 = 'RNA')
+# VariableFeatures(Integrated) <- NULL
+
+file_path <- "./01_data/processed/merged_and_processed/merged_calagry_exact_TIL_only.h5ad"
+sceasy::convertFormat(Integrated, from="seurat", to="anndata", outFile=file_path)
+
+#file path == path to .RData file, not h5ad
+load(file_path)
+
+##################
 # ###STACASIntegration
 ##################
 stacas <- NormalizeData(Integrated) |>
@@ -318,15 +338,23 @@ DimPlot(stacas, reduction="umap", group.by="pool")
 ##################
 # scgate_DB <- Integrated
 scgate_DB <- get_scGateDB()
-stacas_scgate <- scGate(stacas, model=scgate_DB$mouse$generic)
+# stacas_scgate <- scGate(stacas, model=scgate_DB$mouse$generic)
+stacas_scgate2 <- scGate(stacas, model=scgate_DB$mouse$HiTME)
 DimPlot(stacas_scgate, group.by="is.pure_Tcell")
 DimPlot(stacas_scgate, group.by="scGate_multi")
 FeaturePlot(stacas_scgate, features=c("Tcell_UCell", "CD4T_UCell", "CD8T_UCell"))
 
+DefaultAssay(stacas_scgate) <- "RNA"
+DefaultAssay(stacas_scgate2) <- "RNA"
+file_path <- "./01_data/processed/merged_and_processed/merged_calagry_exact_TIL_only_celltypes_multimodel.h5ad"
+sceasy::convertFormat(stacas_scgate, from="seurat", to="anndata", outFile=file_path)
+
 ##################
 # #KeepPureTcell
 ##################
-stacas_Tcells <- subset(stacas_scgate, subset = is.pure_Tcell == "Pure")
+stacas_Tcells <- subset(stacas_scgate2, subset = is.pure_Tcell == "Pure")
+stacas_Tcells3 <- subset(stacas_scgate2, subset = (is.pure_CD4T == "Pure") | (is.pure_CD8T == "Pure"))
+stacas_Tcells2 <- subset(stacas_scgate2, subset = scGate_multi %in% c("CD4T", "CD8T"))
 DefaultAssay(stacas_Tcells) <- "RNA"
 stacas_Tcells <- NormalizeData(stacas_Tcells)
 
@@ -337,10 +365,13 @@ stacas_Tcells <- FindClusters(stacas_Tcells, resolution = 0.5)
 stacas_Tcells <- RunUMAP(stacas_Tcells, dims = 1:15)
 DimPlot(stacas_Tcells, reduction = "umap",group.by= "pool")
 
-file_path <- "~/car_t_sc/01_data/processed/merged_and_processed/merged_1xintegrated_pureTCs_pseudocount.RData"
+file_path <- "~/car_t_sc/01_data/processed/merged_and_processed/merged_1xintegrated_pureTCs_calagry_exact.RData"
 save(stacas_Tcells, file = file_path)
 
 load(file_path)
+
+file_path <- "./01_data/processed/merged_and_processed/merged_1xintegrated_pureTCs_calagry_exact.h5ad"
+sceasy::convertFormat(stacas_Tcells, from="seurat", to="anndata", outFile=file_path)
 
 ##################
 # #RegressOutCellCycle&MitochondrialGenes
@@ -362,10 +393,12 @@ stacas_Tcells <- RunUMAP(stacas_Tcells, dims = 1:15)
 DimPlot(stacas_Tcells, reduction = "umap",group.by= "pool")
 
 
-file_path <- "~/car_t_sc/01_data/processed/merged_and_processed/merged_1xintegrated_pureTCs_calagry_exact.RData"
+file_path <- "~/car_t_sc/01_data/processed/merged_and_processed/merged_2xintegrated_pureTCs_calagry_exact.RData"
 save(stacas_Tcells, file = file_path)
 
 load(file_path)
+
+
 
 ##################
 # ###ProjecTILsDefaultParameters
@@ -401,10 +434,10 @@ dittoBarPlot(new_cd4, x.reorder=c(1,3,2), group.by="day", var="functional.cluste
 
 
 #save the data
-file_path <- "./01_data/processed/merged_and_processed/merged_1xintegrated_scaled_pureTCs_annotated_pseudocount.RData"
+file_path <- "./01_data/processed/merged_and_processed/merged_1xintegrated_scaled_pureTCs_annotated_calagry_exact.RData"
 save(scgate.projected, file = file_path)
 
-#convert to andata
+#convert to andata, for some reason this does work without convertion into seurat V3 object, however if it doesnt, do as done above and convert V5 to V3
 file_path <- "./01_data/processed/merged_and_processed/merged_1xintegrated_scaled_pureTCs_annotated_pseudocount.h5Seurat"
 SaveH5Seurat(scgate.projected, filename = file_path)
 Convert(file_path, dest = "h5ad")
