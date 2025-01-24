@@ -21,7 +21,7 @@ MutableSeq.multiple3 = multiple3
 def translate_fastq_to_fasta_out(args):
     output = args.output
     input = args.input
-    with open(output, 'w') as output_handle: 
+    with gzip.open(output, 'wt') as output_handle: 
         with gzip.open(input, "rt") as input_file:
             for record in SeqIO.parse(input_file, 'fastq'):
                 seq = MutableSeq(record.seq)
