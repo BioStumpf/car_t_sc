@@ -37,8 +37,8 @@ def batched_iterator(iterator, batch_size):
 def translate_fastq_to_fasta_out(args):
     output = args.output
     input = args.input
-    cpus = args.cpus
-    batch_size = 12000  # Adjust batch size as needed
+    cpus = int(args.cpus)
+    batch_size = 1000  # Adjust batch size as needed
 
     with gzip.open(output, 'wt') as output_handle:
         input_iterator = SeqIO.parse(gzip.open(input, "rt"), 'fastq')
@@ -52,7 +52,7 @@ def main():
     parser=argparse.ArgumentParser(description="Convert the fq.gz illumina sequencing fastqs which are nucleotide sequences into protein sequences, base on all 3 ORFs")
     parser.add_argument("-in",help=".fq.gz file containing the reads" ,dest="input", type=str, required=True)
     parser.add_argument("-out",help=".fa output filename which will contain protein sequences" ,dest="output", type=str, required=True)
-    parser.add_argument("-cpus", help="since the script uses multiprossessing, it needs to know how many cpus are available", type=int, default=None)
+    parser.add_argument("-cpus", help="since the script uses multiprossessing, it needs to know how many cpus are available", type=str, default=None)
     parser.set_defaults(func=translate_fastq_to_fasta_out)
     args=parser.parse_args()
     args.func(args)

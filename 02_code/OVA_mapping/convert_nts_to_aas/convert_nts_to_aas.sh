@@ -7,16 +7,16 @@ OUTPUT="$DATA_DIR/processed/OVA_receptor/raw_FASTQS_protein"
 SCRIPT="$HOME/car_t_sc/02_code/OVA_mapping/convert_nts_to_aas/convert_nts_to_aas.py"
 
 
-for file in $FASTQS_DIR/*{GEX,VDJ}*R2.fq.gz; do
+for file in $FASTQS_DIR/*GEX*R2.fq.gz; do
     pool_pattern=$(basename $file | grep -o P[1-9])
-    lib_pattern=$(basename $file | grep -oE "GEX|VDJ")
-    output_file="$OUTPUT/${pool_pattern}_${lib_pattern}.fa"
+    lib_pattern=$(basename $file | grep -oE "GEX")
+    output_file="$OUTPUT/${pool_pattern}_${lib_pattern}.fa.gz"
     jobname="Extract_Cellbarcode_${pool_pattern}_${lib_pattern}"
     echo "$file" "$output_file"
     sbatch --job-name="$jobname" \
            --error="${jobname}_err.txt" \
            --output="${jobname}_output.out" \
-           --cpus-per-task=2 \
-           --mem-per-cpu=2G \
-           --wrap="python3 ${SCRIPT} -in "$file" -out '$output_file'"
+           --cpus-per-task=36\
+           --mem-per-cpu=4G \
+           --wrap="python3 ${SCRIPT} -in '$file' -out '$output_file' -cpus 35"
 done
