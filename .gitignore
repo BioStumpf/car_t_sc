@@ -3,9 +3,10 @@
 02_test.ipynb
 __pycache__
 ref_TILAtlas_mouse_v1.rds
-02_code/mapping/**/*.txt
-02_code/mapping/**/*.out
 .Rhistory
 .RData
 .lintr
 03_results
+/**/*err.txt
+**/*output.out
+**/*finding_nt_sequence_OVA.ipynb
