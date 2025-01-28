@@ -38,7 +38,7 @@ def translate_fastq_to_fasta_out(args):
     output = args.output
     input = args.input
     cpus = int(args.cpus)
-    batch_size = 1000  # Adjust batch size as needed
+    batch_size = 5  # Adjust batch size as needed
 
     with gzip.open(output, 'wt') as output_handle:
         input_iterator = SeqIO.parse(gzip.open(input, "rt"), 'fastq')
