@@ -1,6 +1,6 @@
 [gene-expression]
-reference,/home/s377963/cellranger/refgenomes/refdata-gex-GRCm39-2024-A/
-create-bam, false
+reference,/home/s377963/cellranger/refgenomes/refdata-gex-GRCm39-2024-A-CAR/
+create-bam,true
 
 [vdj]
 reference,/home/s377963/cellranger/refvdj/refdata-cellranger-vdj-GRCm38-alts-ensembl-7.0.0/

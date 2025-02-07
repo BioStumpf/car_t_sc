@@ -1,0 +1,15 @@
+[gene-expression]
+reference,/home/s377963/cellranger/refgenomes/refdata-gex-GRCm39-2024-A-CAR/
+create-bam,true
+
+[vdj]
+reference,/home/s377963/cellranger/refvdj/refdata-cellranger-vdj-GRCm38-alts-ensembl-7.0.0/
+
+[feature]
+reference,/home/s377963/car_t_sc/01_data/raw/cellranger_multi/2024-06-07_24054SC_Luu_P7_cellranger/count/feature_reference.csv 
+
+[libraries]
+fastq_id,fastqs,lanes,feature_types
+p7gex_sample,/home/s377963/car_t_sc/01_data/raw/renamed_fastqs/,any,Gene Expression
+p7vdj_sample,/home/s377963/car_t_sc/01_data/raw/renamed_fastqs/,any,VDJ-T
+p7csp_sample,/home/s377963/car_t_sc/01_data/raw/renamed_fastqs/,any,Antibody Capture
