@@ -8,5 +8,5 @@ ref_TILAtlas_mouse_v1.rds
 .lintr
 03_results
 /**/*err.txt
-**/*output.out
+**/*.out
 **/*finding_nt_sequence_OVA.ipynb
