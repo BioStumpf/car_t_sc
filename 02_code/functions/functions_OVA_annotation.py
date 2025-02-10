@@ -61,6 +61,31 @@ def merge_VDJ_and_GEX(GEX, VDJ):
     merging_identical_cols(merged)
     return merged
 
+
+#this function reads all files containing tsv dictionaries with information about the raw cellbarcodes
+#and what barcode they have become within the actual anndata object
+def read_cellbarcode_tsvs(folder):
+    files = sorted(os.listdir(folder))
+    col_names = ['raw', 'corrected']
+    pool_corrections_list = []
+    for file in files:
+        full_path = os.path.join(folder, file)
+        pool_correction = pd.read_csv(full_path, names = col_names, sep=" ", header = None)
+        pool_correction[col_names[1]] = [brcd[:16] for brcd in pool_correction[col_names[1]]]
+        pool_corrections_list.append(pool_correction)
+    return pool_corrections_list
+
+
+#this function will merge and format the dfs for containing the corrected barcode info
+#together with the dfs containing the information about CAR-T counts, allowing to join the originial cellranger object based on corrected barcodes
+def merge_OVA_counts_with_corrected_cellbarcodes(barcodes, counts):
+    merged = pd.merge(barcodes, counts, left_on='raw', right_on='Cellbarcode', how='inner')
+    merged.drop(columns=['Cellbarcode', 'raw'], inplace=True)
+    merged.rename(columns={"corrected": "Cellbarcode"}, inplace=True)
+    merged = merged.groupby("Cellbarcode", as_index=False).sum()
+    return merged
+
+
 #this is to add a column containing information as to whether a cell is a carT cell to the adata object
 def annotate_mapped_OVA(andata_obj, list_of_annotated_pools):
     if "dataset" in andata_obj.obs:
