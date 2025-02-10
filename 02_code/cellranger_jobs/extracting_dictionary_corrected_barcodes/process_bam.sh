@@ -11,4 +11,4 @@ samtools view $path_to_bam | awk -F'\t' '
                    if ($i ~ /^CB:Z:/) { corrected=substr($i,6) }
                    }
                    if (raw && corrected) { print raw, corrected }
-                   }' | sort | uniq > "$output_file"
+                   }' > "$output_file"
