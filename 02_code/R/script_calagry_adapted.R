@@ -183,7 +183,7 @@ sceasy::convertFormat(merged_raw, from="seurat", to="anndata", outFile=file_path
 ##################
 path_to_folders <- '~/car_t_sc/01_data/raw/cellranger_multi'
 path_to_count_matrices_in_folders <- 'per_sample_outs/count/sample_filtered_feature_bc_matrix'
-# output <- "~/car_t_sc/01_data/processed/preprocessed_pools_R/RData_files/processed_pseudocount"
+output <- "~/car_t_sc/01_data/processed/preprocessed_pools_R/RData_files/processed_pseudocount"
 # path_to_raw_count_matrices_in_folders <- 'count/raw_feature_bc_matrix'
 
 subfolders <- list.dirs(path_to_folders, recursive = FALSE)
@@ -194,35 +194,37 @@ for (i in 1:length(subfolders)) {
     seurat_obj <- import_data_to_seurat(count_matrix_path)
     # seurat_obj <- NormalizeData(seurat_obj, assay= "HTO", normalization.method= "CLR")
     # seurat_obj <- HTODemux(seurat_obj, assay = "HTO", kfunc="kmeans", positive.quantile = 0.99)
+    # pool_name <- paste0("P", i)
+    # seurat_obj <- AddMetaData(seurat_obj, metadata = pool_name, col.name = "pool")
     seurat_obj <- demultiplex(seurat_obj, i)
-    pools[[i]] <- seurat_obj
-    # singlets <- subset(seurat_obj, subset=HTO_classification.global == "Singlet")
-    # singlets <- quality_control(singlets)
-    # singlets <- further_processing(singlets)
-    # filename <- paste0("P", i, "_singlets_processed.RData")
-    # file_path <- file.path(output, filename)
-    # save(singlets, file = file_path)
+    # pools[[i]] <- seurat_obj
+    singlets <- subset(seurat_obj, subset=HTO_classification.global == "Singlet")
+    singlets <- quality_control(singlets)
+    singlets <- further_processing(singlets)
+    filename <- paste0("P", i, "_singlets_processed.RData")
+    file_path <- file.path(output, filename)
+    save(singlets, file = file_path)
 }
 
-merged_raw <- merge(pools[[1]], pools[2:9])
-merged_raw <- JoinLayers(merged_raw, assay = "RNA")
+# merged_raw <- merge(pools[[1]], pools[2:9])
+# merged_raw <- JoinLayers(merged_raw, assay = "RNA")
 
-merged_raw@meta.data$condition <- str_extract(merged_raw@meta.data$hash.ID, "C|P|DM")
-merged_raw@meta.data$day <- str_extract(merged_raw@meta.data$hash.ID, "0|7|14")
-merged_raw@meta.data$Location <- str_extract(merged_raw@meta.data$hash.ID, "TIL|dLN")
-merged_raw@meta.data$Location[is.na(merged_raw@meta.data$Location)] <- "in-vitro"
+# merged_raw@meta.data$condition <- str_extract(merged_raw@meta.data$hash.ID, "C|P|DM")
+# merged_raw@meta.data$day <- str_extract(merged_raw@meta.data$hash.ID, "0|7|14")
+# merged_raw@meta.data$Location <- str_extract(merged_raw@meta.data$hash.ID, "TIL|dLN")
+# merged_raw@meta.data$Location[is.na(merged_raw@meta.data$Location)] <- "in-vitro"
 
-file_path <- "~/car_t_sc/01_data/processed/merged_and_processed/XXXCAR_genome/XXXCAR_genome_raw_demultiplexed.RData"
-save(merged_raw, file = file_path)
+# file_path <- "~/car_t_sc/01_data/processed/merged_and_processed/XXXCAR_genome/XXXCAR_genome_raw_demultiplexed.RData"
+# save(merged_raw, file = file_path)
 
-merged_raw[['RNA3']] <- as(object = merged_raw[['RNA']], Class = "Assay")
-DefaultAssay(merged_raw) <- "RNA3"
-merged_raw[["RNA"]] <- NULL
-merged_raw[["HTO"]] <- NULL
-merged_raw <- RenameAssays(object = merged_raw, RNA3 = 'RNA')
+# merged_raw[['RNA3']] <- as(object = merged_raw[['RNA']], Class = "Assay")
+# DefaultAssay(merged_raw) <- "RNA3"
+# merged_raw[["RNA"]] <- NULL
+# merged_raw[["HTO"]] <- NULL
+# merged_raw <- RenameAssays(object = merged_raw, RNA3 = 'RNA')
 
-file_path <- "./01_data/processed/merged_and_processed/XXXCAR_genome/XXXCAR_genome_raw_demultiplexed.h5ad"
-sceasy::convertFormat(merged_raw, from="seurat", to="anndata", outFile=file_path)
+# file_path <- "./01_data/processed/merged_and_processed/XXXCAR_genome/XXXCAR_genome_raw_demultiplexed.h5ad"
+# sceasy::convertFormat(merged_raw, from="seurat", to="anndata", outFile=file_path)
 
 
 ##################
