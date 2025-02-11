@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import os
 import regex as re
+import matplotlib.pyplot as plt
 
 #this is to ectract evalues from hmmer output files
 def extract_evals(hmmer_output):
@@ -107,3 +108,52 @@ def annotate_mapped_OVA(andata_obj, list_of_annotated_pools):
 #this is to select only carTs
 def isOVA(adata):
     return adata[(adata.obs['TCRa'] > 0) | (adata.obs['TCRb'] > 0)]
+
+#write function extracting information about receptor count from adata object
+def extract_receptor_count(adata):
+    to_extract = ['condition', 'day', 'TCRa', 'TCRb']
+    df = adata.obs[to_extract].copy()
+
+    # Convert TCR counts to binary (1 if present, 0 if absent)
+    df['TCRa_only'] = ((df['TCRa'] >= 1) & (df['TCRb'] <  1)).astype(int)
+    df['TCRb_only'] = ((df['TCRa'] <  1) & (df['TCRb'] >= 1)).astype(int)
+    df['TCRb_TCRa'] = ((df['TCRa'] >= 1) & (df['TCRb'] >= 1)).astype(int)
+    df['None'] = ((df['TCRa'] < 1) & (df['TCRb'] < 1)).astype(int)
+
+    # Count number of cells where TCRa or TCRb is present per condition and day
+    df_counts = df.groupby(['condition', 'day'])[['TCRa_only', 'TCRb_only', 'TCRb_TCRa', 'None']].sum()
+    # df_counts['TCRab_tot'] = df_counts.TCRa_only + df_counts.TCRb_only
+    df_counts_reset = df_counts.reset_index()
+    df_counts_reset['Total'] = df_counts_reset[['TCRa_only', 'TCRb_only', 'TCRb_TCRa', 'None']].sum(axis=1)
+    return df_counts_reset
+
+#plotting of receptor count per condition
+def plot_receptor_count(df_counts_reset):
+    conditions = np.unique(df_counts_reset.condition)
+    TCRs = df_counts_reset.columns[2:5]
+
+    # sorted(np.unique(df_counts_reset.day), key=lambda x: int(x)) #, reverse=True
+    fig, axs = plt.subplots(len(conditions), figsize=(8, 6)) #, sharey=True
+
+    for idx, condition in enumerate(conditions):
+        ax = axs[idx] if len(conditions) > 1 else axs  # Handles case with only one condition
+        cond_subset = df_counts_reset[df_counts_reset.condition == condition]
+        # Sort days in descending order dor it to be ascending in the plot
+        cond_subset = cond_subset.sort_values(by='day', ascending=False)
+
+        colors = ['#E69F00', '#56B4E9', '#009E73']
+        ax.barh(cond_subset.day, cond_subset['TCRa_only'], color=colors[0], label='TCRa only')
+        ax.barh(cond_subset.day, cond_subset['TCRb_only'], color=colors[1], left=cond_subset['TCRa_only'], label='TCRb only')
+        ax.barh(cond_subset.day, cond_subset['TCRb_TCRa'], color=colors[2], left=cond_subset['TCRb_only'], label='TCRb + TCRa')
+        ax.set_xlim(0, 60)
+        ax.text(1.1, 0.5, f'Condition: {condition}', transform=ax.transAxes, ha='center', va='center', fontsize=12)
+        for key, spine in ax.spines.items():
+            spine.set_visible(False)
+
+        if idx == len(conditions) - 1:
+            ax.set_xlabel('Absoulute Counts')
+        else:
+            ax.set_xticks([])
+
+    fig.legend(TCRs, loc='center left', bbox_to_anchor=(1.1, 0.81), title="")
+    plt.show()
