@@ -290,7 +290,7 @@ save(singlets, file = file_path)
 ##################
 #import all the data
 pools = list()
-folder <- "~/car_t_sc/01_data/processed/preprocessed_pools_R/RData_files/processed_CAR" #processed_pseudocount or processed_calagry
+folder <- "~/car_t_sc/01_data/processed/preprocessed_pools_R/RData_files/processed_calagry" #processed_pseudocount or processed_calagry
 files <- list.files(folder)
 # file <- file.path(folder, "P1_singlets_processed.RData")
 for (i in 1:length(files)) {
@@ -356,9 +356,9 @@ integrated_data@meta.data$Location[is.na(integrated_data@meta.data$Location)] <-
 ####################
 ###safe the merged object
 ####################
-file_path <- "~/car_t_sc/01_data/processed/merged_and_processed/CAR_genome/CAR_genome_after_qc.RData"
+file_path <- "~/car_t_sc/01_data/processed/merged_and_processed/XXXCAR_genome/XXXCAR_genome_after_qc.RData"
 save(integrated_data, file = file_path)
-load(file_path)
+# load(file_path)
 
 #now convert it into V3 assay, since this one can be transferred reliably into h5ad
 integrated_data_andata <- DietSeurat(integrated_data, assays = c("RNA"))
@@ -370,7 +370,7 @@ integrated_data_andata[['RNA3']]$data <- NULL
 integrated_data_andata <- RenameAssays(object = integrated_data_andata, RNA3 = 'RNA')
 VariableFeatures(integrated_data_andata) <- NULL
 
-file_path <- "./01_data/processed/merged_and_processed/CAR_genome/CAR_genome_after_qc.h5ad"
+file_path <- "./01_data/processed/merged_and_processed/XXXCAR_genome/XXXCAR_genome_after_qc.h5ad"
 sceasy::convertFormat(integrated_data_andata, from="seurat", to="anndata", outFile=file_path)
 
 
@@ -395,9 +395,9 @@ DimPlot(Integrated, reduction="umap", group.by="Location")
 ##################
 # Saving
 ##################
-file_path <- "~/car_t_sc/01_data/processed/merged_and_processed/CAR_genome/CAR_genome_after_qc_TIL_only.RData"
+file_path <- "~/car_t_sc/01_data/processed/merged_and_processed/XXXCAR_genome/XXXCAR_genome_after_qc_TIL_only.RData"
 save(Integrated, file = file_path)
-load(file_path)
+# load(file_path)
 
 ##################
 # ###STACASIntegration
@@ -423,9 +423,9 @@ FeaturePlot(stacas_scgate, features=c("Tcell_UCell", "CD4T_UCell", "CD8T_UCell")
 #################
 #save TC annotation
 #################
-file_path <- "~/car_t_sc/01_data/processed/merged_and_processed/CAR_genome/CAR_genome_after_qc_TIL_only_pure_TC_annotation.RData"
+file_path <- "~/car_t_sc/01_data/processed/merged_and_processed/XXXCAR_genome/XXXCAR_genome_after_qc_TIL_only_pure_TC_annotation.RData"
 save(stacas_scgate, file = file_path)
-load(file_path)
+# load(file_path)
 
 stacas_scgate_anndata <- DietSeurat(stacas_scgate, assays = c("RNA", "integrated"), dimreducs = c("pca", "umap"))
 stacas_scgate_anndata[['RNA3']] <- as(object = stacas_scgate_anndata[['RNA']], Class = "Assay")
@@ -437,7 +437,7 @@ stacas_scgate_anndata[['integrated']] <- NULL
 stacas_scgate_anndata <- RenameAssays(object = stacas_scgate_anndata, RNA3 = 'RNA')
 VariableFeatures(stacas_scgate_anndata) <- NULL
 
-file_path <- "./01_data/processed/merged_and_processed/CAR_genome/CAR_genome_after_qc_TIL_only_pure_TC_annotation.h5ad"
+file_path <- "./01_data/processed/merged_and_processed/XXXCAR_genome/XXXCAR_genome_after_qc_TIL_only_pure_TC_annotation.h5ad"
 sceasy::convertFormat(stacas_scgate_anndata, from="seurat", to="anndata", outFile=file_path)
 
 ##################
@@ -456,9 +456,9 @@ stacas_Tcells <- FindClusters(stacas_Tcells, resolution = 0.5)
 stacas_Tcells <- RunUMAP(stacas_Tcells, dims = 1:15)
 DimPlot(stacas_Tcells, reduction = "umap",group.by= "pool")
 
-file_path <- "~/car_t_sc/01_data/processed/merged_and_processed/CAR_genome/CAR_genome_after_qc_TIL_only_pure_TC_annotation_non_TC_filtered.RData"
+file_path <- "~/car_t_sc/01_data/processed/merged_and_processed/XXXCAR_genome/XXXCAR_genome_after_qc_TIL_only_pure_TC_annotation_non_TC_filtered.RData"
 save(stacas_Tcells, file = file_path)
-load(file_path)
+# load(file_path)
 
 stacas_Tcells_anndata <- DietSeurat(stacas_Tcells, assays = c("RNA"), dimreducs = c("pca", "umap"))
 stacas_Tcells_anndata[['RNA3']] <- as(object = stacas_Tcells_anndata[['RNA']], Class = "Assay")
@@ -469,7 +469,7 @@ stacas_Tcells_anndata[['RNA3']]$data <- NULL
 stacas_Tcells_anndata <- RenameAssays(object = stacas_Tcells_anndata, RNA3 = 'RNA')
 VariableFeatures(stacas_Tcells_anndata) <- NULL
 
-file_path <- "./01_data/processed/merged_and_processed/CAR_genome/CAR_genome_after_qc_TIL_only_pure_TC_annotation_non_TC_filtered.h5ad"
+file_path <- "./01_data/processed/merged_and_processed/XXXCAR_genome/XXXCAR_genome_after_qc_TIL_only_pure_TC_annotation_non_TC_filtered.h5ad"
 sceasy::convertFormat(stacas_Tcells_anndata, from="seurat", to="anndata", outFile=file_path)
 
 ##################
@@ -533,7 +533,7 @@ dittoBarPlot(new_cd4, x.reorder=c(1,3,2), group.by="day", var="functional.cluste
 
 
 #save the data
-file_path <- "./01_data/processed/merged_and_processed/CAR_genome/CAR_genome_after_qc_TIL_only_pure_TC_annotation_non_TC_filtered_TC_subtypes_annotated.RData"
+file_path <- "./01_data/processed/merged_and_processed/XXXCAR_genome/XXXCAR_genome_after_qc_TIL_only_pure_TC_annotation_non_TC_filtered_TC_subtypes_annotated.RData"
 save(scgate.projected, file = file_path)
 
 #prep for saving to h5ad
@@ -547,6 +547,6 @@ scgate.projected_anndata <- RenameAssays(object = scgate.projected_anndata, RNA3
 VariableFeatures(scgate.projected_anndata) <- NULL
 
 #convert to andata, for some reason this does work without convertion into seurat V3 object, however if it doesnt, do as done above and convert V5 to V3
-file_path <- "./01_data/processed/merged_and_processed/CAR_genome/CAR_genome_after_qc_TIL_only_pure_TC_annotation_non_TC_filtered_TC_subtypes_annotated.h5ad"
-sceasy::convertFormat(stacas_Tcells_anndata, from="seurat", to="anndata", outFile=file_path)
+file_path <- "./01_data/processed/merged_and_processed/XXXCAR_genome/XXXCAR_genome_after_qc_TIL_only_pure_TC_annotation_non_TC_filtered_TC_subtypes_annotated.h5ad"
+sceasy::convertFormat(scgate.projected, from="seurat", to="anndata", outFile=file_path)
 
