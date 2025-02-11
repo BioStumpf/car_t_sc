@@ -128,32 +128,57 @@ def extract_receptor_count(adata):
     return df_counts_reset
 
 #plotting of receptor count per condition
-def plot_receptor_count(df_counts_reset):
+def plot_receptor_count(df_counts_reset, xmax = 60, counts = 'Absolute Counts'):
     conditions = np.unique(df_counts_reset.condition)
-    TCRs = df_counts_reset.columns[2:5]
+    # TCRs = df_counts_reset.columns[2:6]
 
-    # sorted(np.unique(df_counts_reset.day), key=lambda x: int(x)) #, reverse=True
-    fig, axs = plt.subplots(len(conditions), figsize=(8, 6)) #, sharey=True
+    fig, axs = plt.subplots(len(conditions), figsize=(8, 6))
 
     for idx, condition in enumerate(conditions):
         ax = axs[idx] if len(conditions) > 1 else axs  # Handles case with only one condition
         cond_subset = df_counts_reset[df_counts_reset.condition == condition]
-        # Sort days in descending order dor it to be ascending in the plot
         cond_subset = cond_subset.sort_values(by='day', ascending=False)
 
         colors = ['#E69F00', '#56B4E9', '#009E73']
-        ax.barh(cond_subset.day, cond_subset['TCRa_only'], color=colors[0], label='TCRa only')
-        ax.barh(cond_subset.day, cond_subset['TCRb_only'], color=colors[1], left=cond_subset['TCRa_only'], label='TCRb only')
-        ax.barh(cond_subset.day, cond_subset['TCRb_TCRa'], color=colors[2], left=cond_subset['TCRb_only'], label='TCRb + TCRa')
-        ax.set_xlim(0, 60)
+        labels = ['TCRa only', 'TCRb only', 'TCRb + TCRa']
+        categories = df_counts_reset.columns[2:5]
+
+        left = np.zeros(len(cond_subset))  # Initialize left offsets as zeros
+
+        for i, category in enumerate(categories):
+            ax.barh(cond_subset.day, cond_subset[category], color=colors[i], label=labels[i], left=left)
+            left += cond_subset[category].values  # Accumulate left offsets
+
+        ax.set_xlim(0, xmax)
         ax.text(1.1, 0.5, f'Condition: {condition}', transform=ax.transAxes, ha='center', va='center', fontsize=12)
+
         for key, spine in ax.spines.items():
             spine.set_visible(False)
 
         if idx == len(conditions) - 1:
-            ax.set_xlabel('Absoulute Counts')
+            ax.set_xlabel(counts)
         else:
             ax.set_xticks([])
 
-    fig.legend(TCRs, loc='center left', bbox_to_anchor=(1.1, 0.81), title="")
+    fig.legend(labels, loc='center left', bbox_to_anchor=(1.1, 0.81), title="")
     plt.show()
+
+
+
+# Function to calculate how many cars have a mapped cd19, ScFV, neither or both to allow plotting
+def calculate_categories(df, datasets):
+    categories = {'TCRa_only': [], 'TCRb_only': [], 'both': [], 'none': []} #, 'none': []
+    for dataset in datasets:
+        df_subset = df[df.dataset == dataset]
+        TCRa_only = ((df_subset['TCRa'] > 0) & (df_subset['TCRb'] < 1)).sum()
+        TCRb_only = ((df_subset['TCRb'] > 0) & (df_subset['TCRa'] < 1)).sum()
+        both = ((df_subset['TCRa'] > 0) & (df_subset['TCRb'] > 0)).sum()
+        none = ((df_subset['TCRa'] == 0) & (df_subset['TCRb'] == 0)).sum()
+
+        
+        categories['TCRa_only'].append(TCRa_only)
+        categories['TCRb_only'].append(TCRb_only)
+        categories['both'].append(both)
+        categories['none'].append(none)
+        indx = np.array(datasets) + 1
+    return pd.DataFrame(categories, index=indx)
