@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import os
 import regex as re
+import matplotlib.pyplot as plt
 
 #this is to read the cellbarcodes that matched to the cart receptor
 def read_and_merge_CAR_annotation(Folder):
@@ -87,17 +88,72 @@ def isCAR(adata):
 
 # Function to calculate how many cars have a mapped cd19, ScFV, neither or both to allow plotting
 def calculate_categories(df, datasets):
-    categories = {'CD19_only': [], 'R11_only': [], 'both': [], 'none': []} #, 'none': []
+    categories = {'CD19_only': [], 'scFV_only': [], 'both': [], 'none': []} #, 'none': []
     for dataset in datasets:
         df_subset = df[df.dataset == dataset]
         cd19_only = ((df_subset['CD19_trunc'] > 0) & (df_subset['R11_ScFV'] < 1)).sum()
-        r11_only = ((df_subset['R11_ScFV'] > 0) & (df_subset['CD19_trunc'] < 1)).sum()
+        scFV_only = ((df_subset['R11_ScFV'] > 0) & (df_subset['CD19_trunc'] < 1)).sum()
         both = ((df_subset['CD19_trunc'] > 0) & (df_subset['R11_ScFV'] > 0)).sum()
         none = ((df_subset['CD19_trunc'] == 0) & (df_subset['R11_ScFV'] == 0)).sum()
         
         categories['CD19_only'].append(cd19_only)
-        categories['R11_only'].append(r11_only)
+        categories['scFV_only'].append(scFV_only)
         categories['both'].append(both)
         categories['none'].append(none)
         indx = np.array(datasets) + 1
     return pd.DataFrame(categories, index=indx)
+
+#write function extracting information about receptor count from adata object
+def extract_receptor_count(adata):
+    to_extract = ['condition', 'day', 'CD19_trunc', 'R11_ScFV']
+    df = adata.obs[to_extract].copy()
+    df_tmp = adata.obs[to_extract[:2]].copy()
+
+    # Convert TCR counts to binary (1 if present, 0 if absent)
+    df_tmp['CD19_trunc'] = ((df['CD19_trunc'] >= 1) & (df['R11_ScFV'] <  1)).astype(int)
+    df_tmp['scFV'] = ((df['CD19_trunc'] <  1) & (df['R11_ScFV'] >= 1)).astype(int)
+    df_tmp['both'] = ((df['CD19_trunc'] >= 1) & (df['R11_ScFV'] >= 1)).astype(int)
+    df_tmp['none'] = ((df['CD19_trunc'] < 1) & (df['R11_ScFV'] < 1)).astype(int)
+
+    # Count number of cells where TCRa or TCRb is present per condition and day
+    df_counts = df_tmp.groupby(['condition', 'day'])[['CD19_trunc', 'scFV', 'both', 'none']].sum()
+    # df_counts['TCRab_tot'] = df_counts.TCRa_only + df_counts.TCRb_only
+    df_counts_reset = df_counts.reset_index()
+    df_counts_reset['Total'] = df_counts_reset[['CD19_trunc', 'scFV', 'both', 'none']].sum(axis=1)
+    return df_counts_reset
+
+#plotting of receptor count per condition
+def plot_receptor_count(df_counts_reset, xmax = 60, counts = 'Absolute Counts'):
+    conditions = np.unique(df_counts_reset.condition)
+    # TCRs = df_counts_reset.columns[2:6]
+
+    fig, axs = plt.subplots(len(conditions), figsize=(8, 6))
+
+    for idx, condition in enumerate(conditions):
+        ax = axs[idx] if len(conditions) > 1 else axs  # Handles case with only one condition
+        cond_subset = df_counts_reset[df_counts_reset.condition == condition]
+        cond_subset = cond_subset.sort_values(by='day', ascending=False)
+
+        colors = ['#56B4E9', '#E69F00', '#009E73']
+        labels = ['CD19_only', 'scFV_only', 'both']
+        categories = df_counts_reset.columns[2:5]
+
+        left = np.zeros(len(cond_subset))  # Initialize left offsets as zeros
+
+        for i, category in enumerate(categories):
+            ax.barh(cond_subset.day, cond_subset[category], color=colors[i], label=labels[i], left=left)
+            left += cond_subset[category].values  # Accumulate left offsets
+
+        ax.set_xlim(0, xmax)
+        ax.text(1.1, 0.5, f'Condition: {condition}', transform=ax.transAxes, ha='center', va='center', fontsize=12)
+
+        for key, spine in ax.spines.items():
+            spine.set_visible(False)
+
+        if idx == len(conditions) - 1:
+            ax.set_xlabel(counts)
+        else:
+            ax.set_xticks([])
+
+    fig.legend(labels, loc='center left', bbox_to_anchor=(1.1, 0.81), title="")
+    plt.show()
