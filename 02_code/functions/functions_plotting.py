@@ -79,3 +79,46 @@ def stacked_barplot(adata, cell_subtype, obs_column):
     fig.suptitle(f'Fraction of {cell_subtype} T cells by Condition')
     # plt.tight_layout(rect=[0, 0.03, 1, 0.95])  # Adjust layout to fit suptitle
     plt.show()
+
+#for counting tils and dlns 
+def extract_count(adata):
+    to_extract = ['condition', 'day', 'Location']
+    df_tmp = adata.obs[to_extract].copy()
+    df_counts = df_tmp.groupby(['condition', 'day'])['Location'].value_counts().unstack(fill_value=0)   
+    df_counts_reset = df_counts.reset_index()
+    return df_counts_reset
+
+#plotting of til and dln count per condition
+def plot_count(df_counts_reset, xmax = 60, counts = 'Absolute Counts'):
+    conditions = np.unique(df_counts_reset.condition)
+
+    fig, axs = plt.subplots(len(conditions), figsize=(8, 6))
+
+    for idx, condition in enumerate(conditions):
+        ax = axs[idx] if len(conditions) > 1 else axs  # Handles case with only one condition
+        cond_subset = df_counts_reset[df_counts_reset.condition == condition]
+        cond_subset = cond_subset.sort_values(by='day', ascending=False)
+
+        colors = ['#E69F00', '#56B4E9', '#009E73']
+        labels = ['TIL', 'dLN', 'in-vitro']
+        categories = ['TIL', 'dLN', 'in-vitro']
+
+        left = np.zeros(len(cond_subset))  # Initialize left offsets as zeros
+
+        for i, category in enumerate(categories):
+            ax.barh(cond_subset.day, cond_subset[category], color=colors[i], label=labels[i], left=left)
+            left += cond_subset[category].values  # Accumulate left offsets
+
+        ax.set_xlim(0, xmax)
+        ax.text(1.1, 0.5, f'Condition: {condition}', transform=ax.transAxes, ha='center', va='center', fontsize=12)
+
+        for key, spine in ax.spines.items():
+            spine.set_visible(False)
+
+        if idx == len(conditions) - 1:
+            ax.set_xlabel(counts)
+        else:
+            ax.set_xticks([])
+
+    fig.legend(labels, loc='center left', bbox_to_anchor=(1.1, 0.81), title="")
+    plt.show()
