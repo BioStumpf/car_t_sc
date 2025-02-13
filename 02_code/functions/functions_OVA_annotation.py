@@ -92,7 +92,7 @@ def annotate_mapped_OVA(andata_obj, list_of_annotated_pools):
     if "dataset" in andata_obj.obs:
         new_obs_df = pd.DataFrame()
         for dataset in np.unique(andata_obj.obs.dataset):
-            subset = andata_obj.obs[andata_obj.obs['dataset'] == dataset] #note: dataset is a string for some reason
+            subset = andata_obj.obs[andata_obj.obs['dataset'] == dataset].copy() #note: dataset is a string for some reason
             subset.index = [s[0:16] for s in subset.index]
             annotated_pool = list_of_annotated_pools[int(dataset)].copy()
             annotated_pool.index = annotated_pool.Cellbarcode
@@ -110,57 +110,98 @@ def isOVA(adata):
     return adata[(adata.obs['TCRa'] > 0) | (adata.obs['TCRb'] > 0)]
 
 #write function extracting information about receptor count from adata object
-def extract_receptor_count(adata):
-    to_extract = ['condition', 'day', 'TCRa', 'TCRb']
+def extract_receptor_count(adata, to_extract, colnames):
     df = adata.obs[to_extract].copy()
 
     # Convert TCR counts to binary (1 if present, 0 if absent)
-    df['TCRa_only'] = ((df['TCRa'] >= 1) & (df['TCRb'] <  1)).astype(int)
-    df['TCRb_only'] = ((df['TCRa'] <  1) & (df['TCRb'] >= 1)).astype(int)
-    df['TCRb_TCRa'] = ((df['TCRa'] >= 1) & (df['TCRb'] >= 1)).astype(int)
-    df['None'] = ((df['TCRa'] < 1) & (df['TCRb'] < 1)).astype(int)
+    df[colnames[0]] = ((df[to_extract[2]] >= 1) & (df[to_extract[3]] <  1)).astype(int)
+    df[colnames[1]] = ((df[to_extract[2]] <  1) & (df[to_extract[3]] >= 1)).astype(int)
+    df[colnames[2]] = ((df[to_extract[2]] >= 1) & (df[to_extract[3]] >= 1)).astype(int)
+    df[colnames[3]] = ((df[to_extract[2]] < 1)  & (df[to_extract[3]] < 1)).astype(int)
 
     # Count number of cells where TCRa or TCRb is present per condition and day
-    df_counts = df.groupby(['condition', 'day'])[['TCRa_only', 'TCRb_only', 'TCRb_TCRa', 'None']].sum()
+    df_counts = df.groupby(to_extract[:2])[colnames].sum()
     # df_counts['TCRab_tot'] = df_counts.TCRa_only + df_counts.TCRb_only
     df_counts_reset = df_counts.reset_index()
-    df_counts_reset['Total'] = df_counts_reset[['TCRa_only', 'TCRb_only', 'TCRb_TCRa', 'None']].sum(axis=1)
+    df_counts_reset['Total'] = df_counts_reset[colnames].sum(axis=1)
     return df_counts_reset
 
 #plotting of receptor count per condition
-def plot_receptor_count(df_counts_reset, xmax = 60, counts = 'Absolute Counts'):
-    conditions = np.unique(df_counts_reset.condition)
+def plot_receptor_counth(df_counts_reset, grouping, hue, xmax = 60, counts = 'Absolute Counts', figrsize = (8,6)):
+    groups = np.unique(df_counts_reset[grouping])
     # TCRs = df_counts_reset.columns[2:6]
+    fig, axs = plt.subplots(len(groups), figsize=figrsize)
 
-    fig, axs = plt.subplots(len(conditions), figsize=(8, 6))
-
-    for idx, condition in enumerate(conditions):
-        ax = axs[idx] if len(conditions) > 1 else axs  # Handles case with only one condition
-        cond_subset = df_counts_reset[df_counts_reset.condition == condition]
-        cond_subset = cond_subset.sort_values(by='day', ascending=False)
+    for idx, group in enumerate(groups):
+        ax = axs[idx] if len(groups) > 1 else axs  # Handles case with only one condition
+        group_subset = df_counts_reset[df_counts_reset[grouping] == group]
+        # group_subset = group_subset.sort_values(by=hue, ascending=False) if sort==True else 
+        group_subset = group_subset[::-1]
 
         colors = ['#E69F00', '#56B4E9', '#009E73']
-        labels = ['TCRa only', 'TCRb only', 'TCRb + TCRa']
+        # labels = ['TCRa only', 'TCRb only', 'TCRb + TCRa']
+        # labels = df_counts_reset.columns[2:5]
         categories = df_counts_reset.columns[2:5]
 
-        left = np.zeros(len(cond_subset))  # Initialize left offsets as zeros
+        left = np.zeros(len(group_subset))  # Initialize left offsets as zeros
 
         for i, category in enumerate(categories):
-            ax.barh(cond_subset.day, cond_subset[category], color=colors[i], label=labels[i], left=left)
-            left += cond_subset[category].values  # Accumulate left offsets
+            # ax.barh(group_subset[hue], group_subset[category], color=colors[i], label=categories[i], left=left)
+            ax.barh(group_subset[hue], group_subset[category], color=colors[i], label=categories[i], left=left)
+            left += group_subset[category].values  # Accumulate left offsets
 
         ax.set_xlim(0, xmax)
-        ax.text(1.1, 0.5, f'Condition: {condition}', transform=ax.transAxes, ha='center', va='center', fontsize=12)
+        ax.text(1.1, 0.5, group, transform=ax.transAxes, ha='center', va='center', fontsize=12)
 
         for key, spine in ax.spines.items():
             spine.set_visible(False)
 
-        if idx == len(conditions) - 1:
+        if idx == len(groups) - 1:
             ax.set_xlabel(counts)
         else:
             ax.set_xticks([])
 
-    fig.legend(labels, loc='center left', bbox_to_anchor=(1.1, 0.81), title="")
+    fig.legend(categories, loc='center left', bbox_to_anchor=(1.03, 0.81), title="")
+    plt.show()
+
+def plot_receptor_countv(df_counts_reset, grouping, hue, ymax = 60, counts = 'Absolute Counts', figrsize = (8,6)):
+    groups = np.unique(df_counts_reset[grouping])
+    # TCRs = df_counts_reset.columns[2:6]
+    fig, axs = plt.subplots(ncols=len(groups), figsize=figrsize)
+
+    for idx, group in enumerate(groups):
+        ax = axs[idx] if len(groups) > 1 else axs  # Handles case with only one condition
+        group_subset = df_counts_reset[df_counts_reset[grouping] == group]
+        # group_subset = group_subset.sort_values(by=hue, ascending=False) if sort==True else 
+        # group_subset = group_subset[::-1]
+
+        colors = ['#E69F00', '#56B4E9', '#009E73']
+        # labels = ['TCRa only', 'TCRb only', 'TCRb + TCRa']
+        # labels = df_counts_reset.columns[2:5]
+        categories = df_counts_reset.columns[2:5]
+
+        bottom = np.zeros(len(group_subset))  # Initialize left offsets as zeros
+
+        for i, category in enumerate(categories):
+            # ax.barh(group_subset[hue], group_subset[category], color=colors[i], label=categories[i], left=left)
+            ax.bar(group_subset[hue], group_subset[category], color=colors[i], label=categories[i], bottom=bottom)
+            bottom += group_subset[category].values  # Accumulate left offsets
+
+        ax.set_ylim(0, ymax)
+        ax.text(0.4, -0.1, group, transform=ax.transAxes, ha='center', va='center', fontsize=12)
+        ax.set_xticks(group_subset[hue])  # Set tick positions
+        ax.set_xticklabels(group_subset[hue], rotation=45, ha="right")  # Rotate labels
+
+        for key, spine in ax.spines.items():
+            spine.set_visible(False)
+
+        if idx == 0:
+            ax.set_ylabel(counts)
+        else:
+            ax.set_yticks([])
+            
+
+    fig.legend(categories, loc='center left', bbox_to_anchor=(0.8, 0.9), title="")
     plt.show()
 
 
