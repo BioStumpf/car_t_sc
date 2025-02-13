@@ -112,22 +112,31 @@ def isOVA(adata):
 #write function extracting information about receptor count from adata object
 def extract_receptor_count(adata, to_extract, colnames):
     df = adata.obs[to_extract].copy()
+    argc = len(to_extract)
+    if argc == 4:
+        groups = to_extract[:2]
+        targetA = to_extract[2]
+        targetB = to_extract[3]
+    elif argc == 3:
+        groups = [to_extract[0]]
+        targetA = to_extract[1]
+        targetB = to_extract[2]
 
     # Convert TCR counts to binary (1 if present, 0 if absent)
-    df[colnames[0]] = ((df[to_extract[2]] >= 1) & (df[to_extract[3]] <  1)).astype(int)
-    df[colnames[1]] = ((df[to_extract[2]] <  1) & (df[to_extract[3]] >= 1)).astype(int)
-    df[colnames[2]] = ((df[to_extract[2]] >= 1) & (df[to_extract[3]] >= 1)).astype(int)
-    df[colnames[3]] = ((df[to_extract[2]] < 1)  & (df[to_extract[3]] < 1)).astype(int)
+    df[colnames[0]] = ((df[targetA] > 0) & (df[targetB] <  1)).astype(int)
+    df[colnames[1]] = ((df[targetA] <  1) & (df[targetB] > 0)).astype(int)
+    df[colnames[2]] = ((df[targetA] > 0) & (df[targetB] > 0)).astype(int)
+    df[colnames[3]] = ((df[targetA] < 1)  & (df[targetB] < 1)).astype(int)
 
     # Count number of cells where TCRa or TCRb is present per condition and day
-    df_counts = df.groupby(to_extract[:2])[colnames].sum()
+    df_counts = df.groupby(groups)[colnames].sum()
     # df_counts['TCRab_tot'] = df_counts.TCRa_only + df_counts.TCRb_only
     df_counts_reset = df_counts.reset_index()
     df_counts_reset['Total'] = df_counts_reset[colnames].sum(axis=1)
     return df_counts_reset
 
 #plotting of receptor count per condition
-def plot_receptor_counth(df_counts_reset, grouping, hue, xmax = 60, counts = 'Absolute Counts', figrsize = (8,6)):
+def plot_receptor_counth(df_counts_reset, grouping, hue, xmax = 60, counts = 'Absolute Counts', figrsize = (8,6), label=slice(2, 5)):
     groups = np.unique(df_counts_reset[grouping])
     # TCRs = df_counts_reset.columns[2:6]
     fig, axs = plt.subplots(len(groups), figsize=figrsize)
@@ -138,15 +147,11 @@ def plot_receptor_counth(df_counts_reset, grouping, hue, xmax = 60, counts = 'Ab
         # group_subset = group_subset.sort_values(by=hue, ascending=False) if sort==True else 
         group_subset = group_subset[::-1]
 
-        colors = ['#E69F00', '#56B4E9', '#009E73']
-        # labels = ['TCRa only', 'TCRb only', 'TCRb + TCRa']
-        # labels = df_counts_reset.columns[2:5]
-        categories = df_counts_reset.columns[2:5]
+        colors = ['#E69F00', '#56B4E9', '#009E73', '#808080']
+        categories = df_counts_reset.columns[label]
 
         left = np.zeros(len(group_subset))  # Initialize left offsets as zeros
-
         for i, category in enumerate(categories):
-            # ax.barh(group_subset[hue], group_subset[category], color=colors[i], label=categories[i], left=left)
             ax.barh(group_subset[hue], group_subset[category], color=colors[i], label=categories[i], left=left)
             left += group_subset[category].values  # Accumulate left offsets
 
@@ -164,7 +169,7 @@ def plot_receptor_counth(df_counts_reset, grouping, hue, xmax = 60, counts = 'Ab
     fig.legend(categories, loc='center left', bbox_to_anchor=(1.03, 0.81), title="")
     plt.show()
 
-def plot_receptor_countv(df_counts_reset, grouping, hue, ymax = 60, counts = 'Absolute Counts', figrsize = (8,6)):
+def plot_receptor_countv(df_counts_reset, grouping, hue, ymax = 60, counts = 'Absolute Counts', figrsize = (8,6), label=slice(2, 5)):
     groups = np.unique(df_counts_reset[grouping])
     # TCRs = df_counts_reset.columns[2:6]
     fig, axs = plt.subplots(ncols=len(groups), figsize=figrsize)
@@ -175,10 +180,12 @@ def plot_receptor_countv(df_counts_reset, grouping, hue, ymax = 60, counts = 'Ab
         # group_subset = group_subset.sort_values(by=hue, ascending=False) if sort==True else 
         # group_subset = group_subset[::-1]
 
-        colors = ['#E69F00', '#56B4E9', '#009E73']
+        # colors = ['#E69F00', '#56B4E9', '#009E73', ]
+        colors = ['#E69F00', '#56B4E9', '#009E73', '#808080']  # Add a fourth color
+
         # labels = ['TCRa only', 'TCRb only', 'TCRb + TCRa']
         # labels = df_counts_reset.columns[2:5]
-        categories = df_counts_reset.columns[2:5]
+        categories = df_counts_reset.columns[label]
 
         bottom = np.zeros(len(group_subset))  # Initialize left offsets as zeros
 
@@ -203,23 +210,3 @@ def plot_receptor_countv(df_counts_reset, grouping, hue, ymax = 60, counts = 'Ab
 
     fig.legend(categories, loc='center left', bbox_to_anchor=(0.8, 0.9), title="")
     plt.show()
-
-
-
-# Function to calculate how many cars have a mapped cd19, ScFV, neither or both to allow plotting
-def calculate_categories(df, datasets):
-    categories = {'TCRa_only': [], 'TCRb_only': [], 'both': [], 'none': []} #, 'none': []
-    for dataset in datasets:
-        df_subset = df[df.dataset == dataset]
-        TCRa_only = ((df_subset['TCRa'] > 0) & (df_subset['TCRb'] < 1)).sum()
-        TCRb_only = ((df_subset['TCRb'] > 0) & (df_subset['TCRa'] < 1)).sum()
-        both = ((df_subset['TCRa'] > 0) & (df_subset['TCRb'] > 0)).sum()
-        none = ((df_subset['TCRa'] == 0) & (df_subset['TCRb'] == 0)).sum()
-
-        
-        categories['TCRa_only'].append(TCRa_only)
-        categories['TCRb_only'].append(TCRb_only)
-        categories['both'].append(both)
-        categories['none'].append(none)
-        indx = np.array(datasets) + 1
-    return pd.DataFrame(categories, index=indx)
