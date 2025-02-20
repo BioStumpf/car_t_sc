@@ -110,26 +110,22 @@ def isOVA(adata):
     return adata[(adata.obs['TCRa'] > 0) | (adata.obs['TCRb'] > 0)]
 
 #write function extracting information about receptor count from adata object
-def extract_receptor_count(adata, to_extract, colnames):
+def extract_receptor_count(adata, to_extract, colnames, nr_groups):
     df = adata.obs[to_extract].copy()
+    df_tmp = adata.obs[to_extract[:nr_groups]].copy()
     argc = len(to_extract)
-    if argc == 4:
-        groups = to_extract[:2]
-        targetA = to_extract[2]
-        targetB = to_extract[3]
-    elif argc == 3:
-        groups = [to_extract[0]]
-        targetA = to_extract[1]
-        targetB = to_extract[2]
+    groups = to_extract[:nr_groups]
+    targetA = to_extract[argc - 2]
+    targetB = to_extract[argc - 1]
 
     # Convert TCR counts to binary (1 if present, 0 if absent)
-    df[colnames[0]] = ((df[targetA] > 0) & (df[targetB] <  1)).astype(int)
-    df[colnames[1]] = ((df[targetA] <  1) & (df[targetB] > 0)).astype(int)
-    df[colnames[2]] = ((df[targetA] > 0) & (df[targetB] > 0)).astype(int)
-    df[colnames[3]] = ((df[targetA] < 1)  & (df[targetB] < 1)).astype(int)
+    df_tmp[colnames[0]] = ((df[targetA] > 0) & (df[targetB] == 0)).astype(int)
+    df_tmp[colnames[1]] = ((df[targetA] == 0) & (df[targetB] > 0)).astype(int)
+    df_tmp[colnames[2]] = ((df[targetA] > 0) & (df[targetB] > 0)).astype(int)
+    df_tmp[colnames[3]] = ((df[targetA] == 0)  & (df[targetB] == 0)).astype(int)
 
     # Count number of cells where TCRa or TCRb is present per condition and day
-    df_counts = df.groupby(groups)[colnames].sum()
+    df_counts = df_tmp.groupby(groups)[colnames].sum()
     # df_counts['TCRab_tot'] = df_counts.TCRa_only + df_counts.TCRb_only
     df_counts_reset = df_counts.reset_index()
     df_counts_reset['Total'] = df_counts_reset[colnames].sum(axis=1)
@@ -210,3 +206,10 @@ def plot_receptor_countv(df_counts_reset, grouping, hue, ymax = 60, counts = 'Ab
 
     fig.legend(categories, loc='center left', bbox_to_anchor=(0.8, 0.9), title="")
     plt.show()
+
+#to generate a .obs column for each replicate, usefull for statistical tesing
+def extract_replicate(adata, column):
+    rep_info = adata.obs[column]
+    r = re.compile('(C|DM|P)(\d)')
+    replicates = [int(re.search(r, cell).group(2)) if re.search(r, cell) else 1 for cell in rep_info]
+    adata.obs['replicate'] = replicates
