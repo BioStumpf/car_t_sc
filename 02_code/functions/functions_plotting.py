@@ -25,7 +25,63 @@ def add_DaysConds_to_adata(adata, days, conditions):
     adata.obs['day'] = cond_days
 
 #This function creates a stacked barplot for the adata object, based on 
-def stacked_barplot(adata, cell_subtype, obs_column):
+# def stacked_barplot(adata, cell_subtype, obs_column):
+#     conditions = np.unique(adata.obs.condition.values)
+#     days = sorted(np.unique(adata.obs.day), key=lambda x: int(x), reverse=True)
+#     colors = ['#FF69B4', '#4B0082', '#228B22', '#FFD700', '#4682B4', '#FF4500', '#8B4513']
+
+#     # Filter for only selected subtype
+#     subtype_only = list(map(lambda subtype: cell_subtype in subtype, adata.obs[obs_column]))
+#     adata = adata[subtype_only, :].copy()
+#     unq_celltypes = np.unique(adata.obs[obs_column])
+
+#     # Set up subplots for each condition
+#     fig, axs = plt.subplots(len(conditions), figsize=(8, 6)) #, sharey=True
+
+#     # Plot each condition in a separate subplot
+#     for idx, condition in enumerate(conditions):
+#         ax = axs[idx] if len(conditions) > 1 else axs  # Handles case with only one condition
+#         subset = adata[adata.obs.condition == condition, :]
+        
+#         # Initialize dictionary for each celltype's counts by day
+#         celltype_counts = {celltype: [] for celltype in unq_celltypes}
+        
+#         for celltype in unq_celltypes:
+#             celltype_subset = subset[subset.obs[obs_column] == celltype, :]
+#             for day in days:
+#                 day_subset = celltype_subset[celltype_subset.obs.day == day, :]
+#                 day_count = len(day_subset)  # Count the entries for each day and cell type
+#                 celltype_counts[celltype].append(day_count)
+
+#         # Normalize cell type counts by day
+#         norm_factors = [sum(day_counts) for day_counts in zip(*celltype_counts.values())]
+#         norm_factors = [nf if nf > 0 else 1 for nf in norm_factors] 
+#         for key, values in celltype_counts.items():
+#             celltype_counts[key] = (np.array(values) / norm_factors) * 100
+
+#         # Stacked bar plot for the current condition
+#         left = np.zeros(len(days))  # Reset the 'left' offset for each condition
+#         for i, (celltype, celltype_count) in enumerate(celltype_counts.items()):
+#             p = ax.barh(days, celltype_count, 0.8, label=celltype, left=left, color=colors[i % len(colors)])
+#             left += celltype_count
+#             # ax.bar_label(p, label_type='center', labels=[f'{val:.1f}' for val in celltype_count])
+#         ax.text(1.05, 0.5, f'Condition: {condition}', transform=ax.transAxes, ha='center', va='center', fontsize=12) #rotation=270,
+#         if idx == len(conditions) - 1:
+#             ax.set_xlabel('Percentage')
+#         else:
+#             ax.set_xticks([])
+
+#         for key, spine in ax.spines.items():
+#             spine.set_visible(False)
+
+#     fig.legend(unq_celltypes, loc='center left', bbox_to_anchor=(1.005, 0.75), title="Cell Types")
+#     # plt.subplots_adjust(left=0.05, right=0.8, wspace=0.15)
+#     fig.suptitle(f'Fraction of {cell_subtype} T cells by Condition')
+#     # plt.tight_layout(rect=[0, 0.03, 1, 0.95])  # Adjust layout to fit suptitle
+#     plt.show()
+
+
+def stacked_barplot(adata, cell_subtype, obs_column, xmax, xlabel, norm = True):
     conditions = np.unique(adata.obs.condition.values)
     days = sorted(np.unique(adata.obs.day), key=lambda x: int(x), reverse=True)
     colors = ['#FF69B4', '#4B0082', '#228B22', '#FFD700', '#4682B4', '#FF4500', '#8B4513']
@@ -53,11 +109,12 @@ def stacked_barplot(adata, cell_subtype, obs_column):
                 day_count = len(day_subset)  # Count the entries for each day and cell type
                 celltype_counts[celltype].append(day_count)
 
-        # Normalize cell type counts by day
-        norm_factors = [sum(day_counts) for day_counts in zip(*celltype_counts.values())]
-        norm_factors = [nf if nf > 0 else 1 for nf in norm_factors] 
-        for key, values in celltype_counts.items():
-            celltype_counts[key] = (np.array(values) / norm_factors) * 100
+        if norm:
+            # Normalize cell type counts by day
+            norm_factors = [sum(day_counts) for day_counts in zip(*celltype_counts.values())]
+            norm_factors = [nf if nf > 0 else 1 for nf in norm_factors] 
+            for key, values in celltype_counts.items():
+                celltype_counts[key] = (np.array(values) / norm_factors) * 100
 
         # Stacked bar plot for the current condition
         left = np.zeros(len(days))  # Reset the 'left' offset for each condition
@@ -65,20 +122,22 @@ def stacked_barplot(adata, cell_subtype, obs_column):
             p = ax.barh(days, celltype_count, 0.8, label=celltype, left=left, color=colors[i % len(colors)])
             left += celltype_count
             # ax.bar_label(p, label_type='center', labels=[f'{val:.1f}' for val in celltype_count])
-        ax.text(1.05, 0.5, f'Condition: {condition}', transform=ax.transAxes, ha='center', va='center', fontsize=12) #rotation=270,
+        ax.text(1.05, 0.5, condition, transform=ax.transAxes, ha='center', va='center', fontsize=12) #rotation=270,
         if idx == len(conditions) - 1:
-            ax.set_xlabel('Percentage')
+            ax.set_xlabel(xlabel)
         else:
             ax.set_xticks([])
 
         for key, spine in ax.spines.items():
             spine.set_visible(False)
+        ax.set_xlim(0, xmax)
 
     fig.legend(unq_celltypes, loc='center left', bbox_to_anchor=(1.005, 0.75), title="Cell Types")
     # plt.subplots_adjust(left=0.05, right=0.8, wspace=0.15)
     fig.suptitle(f'Fraction of {cell_subtype} T cells by Condition')
     # plt.tight_layout(rect=[0, 0.03, 1, 0.95])  # Adjust layout to fit suptitle
     plt.show()
+
 
 #for counting tils and dlns 
 def extract_count(adata):
