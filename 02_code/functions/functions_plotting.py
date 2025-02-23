@@ -6,7 +6,8 @@ from matplotlib import pyplot as plt
 import anndata as ad
 import numpy as np
 import pandas as pd
-import os
+import os 
+import warnings
 
 #This function extracts a specific day and condition from the adata objecs classification
 def extract_DayCond(days, conditions, classification):
@@ -81,14 +82,18 @@ def add_DaysConds_to_adata(adata, days, conditions):
 #     plt.show()
 
 
-def stacked_barplot(adata, cell_subtype, obs_column, xmax, xlabel, norm = True):
+def stacked_barplot(adata, obs_column, xmax, xlabel, colors, common_cell_subtype = None, norm = True):
     conditions = np.unique(adata.obs.condition.values)
     days = sorted(np.unique(adata.obs.day), key=lambda x: int(x), reverse=True)
-    colors = ['#FF69B4', '#4B0082', '#228B22', '#FFD700', '#4682B4', '#FF4500', '#8B4513']
+    #to avoid some annoying infos
+    plt.set_loglevel('WARNING') 
 
-    # Filter for only selected subtype
-    subtype_only = list(map(lambda subtype: cell_subtype in subtype, adata.obs[obs_column]))
-    adata = adata[subtype_only, :].copy()
+    # colors = ['#FF69B4', '#4B0082', '#228B22', '#FFD700', '#4682B4', '#FF4500', '#8B4513']
+    # Filter for only selected common subtype 
+    if common_cell_subtype:
+        subtype_only = list(map(lambda subtype: common_cell_subtype in subtype, adata.obs[obs_column]))
+        adata = adata[subtype_only, :].copy()
+
     unq_celltypes = np.unique(adata.obs[obs_column])
 
     # Set up subplots for each condition
@@ -119,7 +124,7 @@ def stacked_barplot(adata, cell_subtype, obs_column, xmax, xlabel, norm = True):
         # Stacked bar plot for the current condition
         left = np.zeros(len(days))  # Reset the 'left' offset for each condition
         for i, (celltype, celltype_count) in enumerate(celltype_counts.items()):
-            p = ax.barh(days, celltype_count, 0.8, label=celltype, left=left, color=colors[i % len(colors)])
+            p = ax.barh(days, celltype_count, 0.8, label=celltype, left=left, color=colors[celltype]) #colors[i % len(colors)]   colors[celltype]
             left += celltype_count
             # ax.bar_label(p, label_type='center', labels=[f'{val:.1f}' for val in celltype_count])
         ax.text(1.05, 0.5, condition, transform=ax.transAxes, ha='center', va='center', fontsize=12) #rotation=270,
@@ -134,7 +139,7 @@ def stacked_barplot(adata, cell_subtype, obs_column, xmax, xlabel, norm = True):
 
     fig.legend(unq_celltypes, loc='center left', bbox_to_anchor=(1.005, 0.75), title="Cell Types")
     # plt.subplots_adjust(left=0.05, right=0.8, wspace=0.15)
-    fig.suptitle(f'Fraction of {cell_subtype} T cells by Condition')
+    # fig.suptitle(f'Fraction of {common_cell_subtype} T cells by Condition')
     # plt.tight_layout(rect=[0, 0.03, 1, 0.95])  # Adjust layout to fit suptitle
     plt.show()
 
