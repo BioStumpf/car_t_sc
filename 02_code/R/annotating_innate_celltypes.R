@@ -1,5 +1,8 @@
+
+library(SeuratObject)
+library(Seurat)
 library(BiocManager)
-library("Seurat") #5.1.0
+library(Seurat) #5.1.0
 library('ProjecTILs') #3.3.1
 # library('scRepertoire') #1.12.0
 library('STACAS') #2.2.2
@@ -12,15 +15,23 @@ library('gprofiler2')
 library('stringr')
 library('sceasy')
 library('remotes')
+library(GSVA)
 library('scImmunuCC')
 set.seed(1234)
 
+.libPaths(c("/home/s377963/mambaforge/envs/scanpy/lib/R/library", .libPaths()))
 
 if (!requireNamespace("GSVA", quietly = TRUE))
     BiocManager::install("GSVA")
 
 remotes::install_github("wuaipinglab/scImmuCC")
 
+install.packages('Seurat')
+install.packages('leidenbase')
+
+
+
 file_path <- "~/car_t_sc/01_data/processed/merged_and_processed/XXXCAR_genome/XXXCAR_genome_after_qc_TIL_only_pure_TC_annotation_non_TC_filtered.RData"
 load(file_path)
+
 

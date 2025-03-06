@@ -168,7 +168,7 @@ def plot_qc_metrics(adatas: list, adatas_qc: list, save_dir=None):
         fig, axs = plt.subplots(1, 3, figsize=(16, 6))
         cells_before = adata.obs.shape[0]
         cells_after = adata_qc.obs.shape[0]
-        fig.suptitle(f'QC Metrics Before (Cells: {cells_before}) and After (Cells: {cells_after}) for pool: {i+1}')
+        fig.suptitle(f'QC metrics before (Cells: {cells_before}) and after (Cells: {cells_after}) for pool: {i+1}')
 
         metrics = ['n_genes_by_counts', 'total_counts', 'pct_counts_mt']
         before_qc = adata.obs[metrics].copy()
@@ -192,7 +192,7 @@ def plot_qc_metrics(adatas: list, adatas_qc: list, save_dir=None):
         if save_dir:
             os.makedirs(save_dir, exist_ok=True)
             file_path = os.path.join(save_dir, f'qc_metrics_p{i+1}.png')
-            plt.savefig(file_path, bbox_inches='tight')
+            plt.savefig(file_path, bbox_inches='tight', dpi=300)
         plt.show()
 
 #transfer HTOs from actual matrix to adata.obs (to use hashsolo later on in the workflow and not falsify quality control metrics)

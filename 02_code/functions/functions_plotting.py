@@ -91,7 +91,7 @@ def add_DaysConds_to_adata(adata, days, conditions):
 #     plt.show()
 
 
-def stacked_barplot(adata, obs_column, xmax, xlabel, colors, common_cell_subtype = None, norm = True):
+def stacked_barplot(adata, obs_column, xmax, xlabel, colors, common_cell_subtype = None, norm = True, save_dir=None):
     conditions = np.unique(adata.obs.condition.values)
     days = sorted(np.unique(adata.obs.day), key=lambda x: int(x), reverse=True)
     #to avoid some annoying infos
@@ -150,6 +150,8 @@ def stacked_barplot(adata, obs_column, xmax, xlabel, colors, common_cell_subtype
     # plt.subplots_adjust(left=0.05, right=0.8, wspace=0.15)
     # fig.suptitle(f'Fraction of {common_cell_subtype} T cells by Condition')
     # plt.tight_layout(rect=[0, 0.03, 1, 0.95])  # Adjust layout to fit suptitle
+    if save_dir:
+        plt.savefig(save_dir, bbox_inches='tight', dpi=300)
     plt.show()
 
 
@@ -162,7 +164,7 @@ def extract_count(adata):
     return df_counts_reset
 
 #plotting of til and dln count per condition
-def plot_count(df_counts_reset, xmax = 60, counts = 'Absolute Counts'):
+def plot_count(df_counts_reset, xmax = 60, counts = 'Absolute Counts', save_dir=None):
     conditions = np.unique(df_counts_reset.condition)
 
     fig, axs = plt.subplots(len(conditions), figsize=(8, 6))
@@ -194,6 +196,9 @@ def plot_count(df_counts_reset, xmax = 60, counts = 'Absolute Counts'):
             ax.set_xticks([])
 
     fig.legend(labels, loc='center left', bbox_to_anchor=(1.1, 0.81), title="")
+    # file_path = os.path.join(save_dir, f'qc_metrics_p{i+1}.png')
+    if save_dir:
+        plt.savefig(save_dir, bbox_inches='tight', dpi=300)
     plt.show()
 
 
@@ -378,4 +383,5 @@ def volcano(data, log2fc='log2FoldChange', pvalue='padj', symbol='symbol',
     # Show only if we created the figure (i.e., not using subplot mode)
     if ax is None:
         plt.show()
+    return df
 

@@ -132,7 +132,7 @@ def extract_receptor_count(adata, to_extract, colnames, nr_groups):
     return df_counts_reset
 
 #plotting of receptor count per condition
-def plot_receptor_counth(df_counts_reset, grouping, hue, xmax = 60, counts = 'Absolute Counts', figrsize = (8,6), label=slice(2, 5)):
+def plot_receptor_counth(df_counts_reset, grouping, hue, xmax = 60, counts = 'Absolute Counts', figrsize = (8,6), label=slice(2, 5), save=None):
     groups = np.unique(df_counts_reset[grouping])
     # TCRs = df_counts_reset.columns[2:6]
     fig, axs = plt.subplots(len(groups), figsize=figrsize)
@@ -163,9 +163,11 @@ def plot_receptor_counth(df_counts_reset, grouping, hue, xmax = 60, counts = 'Ab
             ax.set_xticks([])
 
     fig.legend(categories, loc='center left', bbox_to_anchor=(1.03, 0.81), title="")
+    if save:
+        plt.savefig(save, bbox_inches='tight', dpi=300)
     plt.show()
 
-def plot_receptor_countv(df_counts_reset, grouping, hue, ymax = 60, counts = 'Absolute Counts', figrsize = (8,6), label=slice(2, 5)):
+def plot_receptor_countv(df_counts_reset, grouping, hue, ymax = 60, counts = 'Absolute Counts', figrsize = (8,6), label=slice(2, 5), save = None):
     groups = np.unique(df_counts_reset[grouping])
     # TCRs = df_counts_reset.columns[2:6]
     fig, axs = plt.subplots(ncols=len(groups), figsize=figrsize)
@@ -205,6 +207,8 @@ def plot_receptor_countv(df_counts_reset, grouping, hue, ymax = 60, counts = 'Ab
             
 
     fig.legend(categories, loc='center left', bbox_to_anchor=(0.8, 0.9), title="")
+    if save:
+        plt.savefig(save, bbox_inches='tight', dpi=300)
     plt.show()
 
 #to generate a .obs column for each replicate, usefull for statistical tesing
